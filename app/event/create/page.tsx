@@ -32,6 +32,7 @@ const getCellBg = (value: number) => {
 };
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const getWeekday = (yearMonth: string, day: number) => {
   const [y, m] = yearMonth.split("-").map(Number);
@@ -172,6 +173,12 @@ export default function EventCreatePage() {
     setCreating(false);
   };
 
+  const shiftMonth = (delta: number) => {
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setSelectedMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
   const daysInMonth = new Date(
     Number(selectedMonth.slice(0, 4)),
     Number(selectedMonth.slice(5, 7)),
@@ -283,17 +290,29 @@ export default function EventCreatePage() {
           {/* 右カラム：スケジュール表 */}
           <div className="space-y-4">
             {/* スケジュール表示月 */}
-            <div className="flex items-center gap-3 p-4 rounded-xl" style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}>
-              <span className="text-sm font-bold tracking-widest whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
-                Schedule Month
-              </span>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="flex-1 p-2 rounded"
-                style={{ backgroundColor: "#0a1a1e", border: "1px solid #1e3d45", color: "#e8f5f0" }}
-              />
+            <div className="flex items-center justify-between px-5 py-4 rounded-xl" style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}>
+              <button
+                onClick={() => shiftMonth(-1)}
+                className="text-xl font-bold px-2 transition-opacity hover:opacity-70"
+                style={{ color: "#4ecdc4" }}
+              >
+                ‹
+              </button>
+              <div className="text-center">
+                <div className="text-xs tracking-[0.2em] mb-0.5" style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}>
+                  Schedule Month
+                </div>
+                <div className="font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
+                  {MONTHS[Number(selectedMonth.slice(5, 7)) - 1]} {selectedMonth.slice(0, 4)}
+                </div>
+              </div>
+              <button
+                onClick={() => shiftMonth(1)}
+                className="text-xl font-bold px-2 transition-opacity hover:opacity-70"
+                style={{ color: "#4ecdc4" }}
+              >
+                ›
+              </button>
             </div>
             {selectedUsers.length > 0 ? (
               <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1e3d45" }}>
