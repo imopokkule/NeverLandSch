@@ -5,6 +5,7 @@ import { supabase } from "@/app/lib/supabase";
 import { useSession } from "next-auth/react";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const OPT_COLORS: Record<string, string> = {
   "null": "#0e2030",
@@ -33,6 +34,13 @@ export default function SchedulePage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [availability, setAvailability] = useState<{ [day: number]: number | null }>({});
   const [saved, setSaved] = useState(false);
+
+  const shiftMonth = (delta: number) => {
+    const [y, m] = month.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    setSaved(false);
+  };
 
   const daysInMonth = new Date(
     Number(month.split("-")[0]),
@@ -102,20 +110,33 @@ export default function SchedulePage() {
         </div>
 
         {/* 月選択 */}
-        <div className="flex items-center gap-4">
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => { setMonth(e.target.value); setSaved(false); }}
-            className="px-4 py-2 rounded"
-            style={{
-              backgroundColor: "#112428",
-              border: "1px solid #1e3d45",
-              color: "#e8f5f0",
-            }}
-          />
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-5 py-4 rounded-xl" style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}>
+            <button
+              onClick={() => shiftMonth(-1)}
+              className="text-xl font-bold px-2 transition-opacity hover:opacity-70"
+              style={{ color: "#4ecdc4" }}
+            >
+              ‹
+            </button>
+            <div className="text-center">
+              <div className="text-xs tracking-[0.2em] mb-0.5" style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}>
+                Schedule Month
+              </div>
+              <div className="font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
+                {MONTHS[Number(month.slice(5, 7)) - 1]} {month.slice(0, 4)}
+              </div>
+            </div>
+            <button
+              onClick={() => shiftMonth(1)}
+              className="text-xl font-bold px-2 transition-opacity hover:opacity-70"
+              style={{ color: "#4ecdc4" }}
+            >
+              ›
+            </button>
+          </div>
           {saved && (
-            <span className="text-sm" style={{ color: "#4ecdc4" }}>✓ 保存しました</span>
+            <div className="text-center text-sm" style={{ color: "#4ef0a0", textShadow: "0 0 6px rgba(78,240,160,0.6)" }}>✓ 保存しました</div>
           )}
         </div>
 
