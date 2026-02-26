@@ -28,6 +28,13 @@ export default function HomePage() {
             イベント作成
           </Link>
 
+          <Link
+            href="/schedule"
+            className="px-8 py-4 rounded-2xl border border-black hover:bg-gray-100 transition"
+          >
+            スケジュール入力
+          </Link>
+
         </div>
       </div>
     </main>

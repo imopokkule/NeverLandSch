@@ -30,6 +30,10 @@ export default function Header() {
             CREATE
           </Link>
 
+          <Link href="/schedule" className="hover:underline">
+            SCHEDULE
+          </Link>
+
           {session && (
             <button
               onClick={() => signOut()}
