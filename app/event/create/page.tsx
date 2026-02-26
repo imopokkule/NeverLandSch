@@ -17,6 +17,20 @@ const STATUS_OPTIONS = [
   { value: "closed_murder", label: "〆済みマダミス" },
 ];
 
+const getCellLabel = (value: number) => {
+  if (value === 3) return "◎";
+  if (value === 1) return "〇";
+  if (value === 2) return "△";
+  return "×";
+};
+
+const getCellBg = (value: number) => {
+  if (value === 3) return "#2a6b3a";
+  if (value === 1) return "#6b6b1a";
+  if (value === 2) return "#1a3a6b";
+  return "#6b1a1a";
+};
+
 export default function EventCreatePage() {
   const { data: session } = useSession();
 
@@ -25,103 +39,81 @@ export default function EventCreatePage() {
   const [eventDate, setEventDate] = useState<string | null>(null);
   const [hour, setHour] = useState("18");
   const [minute, setMinute] = useState("00");
-
-  const [users, setUsers] = useState<User[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(
-    new Date().toISOString().slice(0, 7)
-  );
-
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [creating, setCreating] = useState(false);
 
-  /* ===============================
-     ユーザー取得
-  =============================== */
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  const [search, setSearch] = useState("");
+
+  // 全ユーザー取得 + 選択月のスケジュール取得
   useEffect(() => {
     const fetchUsers = async () => {
-      const { data } = await supabase
-        .from("schedules")
-        .select("*")
-        .eq("month", selectedMonth);
+      const [{ data: allData }, { data: monthData }] = await Promise.all([
+        supabase.from("schedules").select("discord_id, user_name").not("user_name", "is", null),
+        supabase.from("schedules").select("discord_id, data").eq("month", selectedMonth),
+      ]);
 
-      setUsers(data || []);
+      const unique = Array.from(
+        new Map((allData || []).map((u: any) => [u.discord_id, u])).values()
+      ) as { discord_id: string; user_name: string }[];
+
+      const scheduleMap = new Map((monthData || []).map((s: any) => [s.discord_id, s.data]));
+
+      const merged: User[] = unique.map((u) => ({
+        discord_id: u.discord_id,
+        user_name: u.user_name,
+        data: scheduleMap.get(u.discord_id) || {},
+      }));
+
+      setAllUsers(merged);
+
+      // 選択済みユーザーのデータも更新
+      setSelectedUsers(prev =>
+        prev.map(su => ({
+          ...su,
+          data: scheduleMap.get(su.discord_id) || {},
+        }))
+      );
     };
-
     fetchUsers();
   }, [selectedMonth]);
 
-  /* ===============================
-     参加者トグル
-  =============================== */
   const toggleUser = (u: User) => {
     if (selectedUsers.find((x) => x.discord_id === u.discord_id)) {
-      setSelectedUsers(
-        selectedUsers.filter((x) => x.discord_id !== u.discord_id)
-      );
+      setSelectedUsers(selectedUsers.filter((x) => x.discord_id !== u.discord_id));
     } else {
       setSelectedUsers([...selectedUsers, u]);
     }
   };
 
-  /* ===============================
-     開催可否判定
-  =============================== */
   const getDayStatus = (day: number) => {
     if (selectedUsers.length === 0) return "";
-
-    let hasAll = false;
-    let hasDay = false;
-    let hasNight = false;
-
+    let hasAll = false, hasDay = false, hasNight = false;
     for (const user of selectedUsers) {
       const value = user.data?.[String(day)];
-
       if (value === 0) return "×";
       if (value === 3) hasAll = true;
       if (value === 1) hasDay = true;
       if (value === 2) hasNight = true;
     }
-
     if (hasAll || (hasDay && hasNight)) return "◎";
     if (hasDay) return "〇";
     if (hasNight) return "△";
-
     return "×";
   };
 
-  const getCellLabel = (value: number) => {
-    if (value === 3) return "◎";
-    if (value === 1) return "〇";
-    if (value === 2) return "△";
-    return "×";
-  };
-
-  const getCellColor = (value: number) => {
-    if (value === 3) return "bg-green-500";
-    if (value === 1) return "bg-yellow-500";
-    if (value === 2) return "bg-blue-500";
-    return "bg-red-500";
-  };
-
-  /* ===============================
-     日付クリック
-  =============================== */
   const handleDateSelect = (day: number) => {
     const date = `${selectedMonth}-${String(day).padStart(2, "0")}`;
     setEventDate(date);
   };
 
-  /* ===============================
-     作成処理（DBのみ）
-  =============================== */
   const createEvent = async () => {
     if (!title || !eventDate || !session) {
-      alert("入力不足です");
+      alert("タイトルと日付を入力してください");
       return;
     }
-
     setCreating(true);
-
     try {
       await supabase.from("events").insert({
         title,
@@ -132,16 +124,16 @@ export default function EventCreatePage() {
         creator_id: (session.user as any)?.id,
         creator_name: session.user?.name,
         creator_image: session.user?.image,
+        participants: selectedUsers.map(u => ({ discord_id: u.discord_id, user_name: u.user_name })),
       });
-
-      alert("作成成功 🎉");
+      alert("作成成功！");
       setTitle("");
       setEventDate(null);
+      setSelectedUsers([]);
     } catch (err) {
       console.error(err);
-      alert("エラー発生");
+      alert("エラーが発生しました");
     }
-
     setCreating(false);
   };
 
@@ -151,16 +143,19 @@ export default function EventCreatePage() {
     0
   ).getDate();
 
+  const filteredUsers = allUsers.filter(u =>
+    u.user_name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const inputStyle = { backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" };
+
   return (
     <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0b1a14", color: "#d4e8e0" }}>
       <div className="max-w-6xl mx-auto space-y-8">
 
         {/* ページヘッダー */}
         <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1a3a2e" }}>
-          <h1
-            className="text-4xl font-bold tracking-widest"
-            style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
-          >
+          <h1 className="text-4xl font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
             Create Event
           </h1>
           <p style={{ color: "#7aad99" }} className="text-sm tracking-wide">
@@ -168,179 +163,166 @@ export default function EventCreatePage() {
           </p>
         </div>
 
-        {/* タイトル */}
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="タイトル"
-          className="w-full p-3 rounded"
-          style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
-        />
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* 左カラム：入力フォーム */}
+          <div className="space-y-4">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="タイトル"
+              className="w-full p-3 rounded"
+              style={inputStyle}
+            />
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={eventDate ?? ""}
+                onChange={(e) => setEventDate(e.target.value)}
+                className="flex-1 p-3 rounded"
+                style={inputStyle}
+              />
+            </div>
+            <div className="flex gap-2">
+              <select value={hour} onChange={(e) => setHour(e.target.value)} className="p-3 rounded" style={inputStyle}>
+                {Array.from({ length: 24 }).map((_, h) => (
+                  <option key={h} value={h.toString().padStart(2, "0")}>{h.toString().padStart(2, "0")}時</option>
+                ))}
+              </select>
+              <select value={minute} onChange={(e) => setMinute(e.target.value)} className="p-3 rounded" style={inputStyle}>
+                <option value="00">00分</option>
+                <option value="30">30分</option>
+              </select>
+            </div>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3 rounded" style={inputStyle}>
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <div>
+              <label className="block mb-2 text-sm" style={{ color: "#7aad99" }}>スケジュール表示月</label>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full p-3 rounded"
+                style={inputStyle}
+              />
+            </div>
 
-        {/* 日付 */}
-        <input
-          type="date"
-          value={eventDate ?? ""}
-          onChange={(e) => setEventDate(e.target.value)}
-          className="p-3 rounded"
-          style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
-        />
-
-        {/* 時間 */}
-        <div className="flex gap-2">
-          <select
-            value={hour}
-            onChange={(e) => setHour(e.target.value)}
-            className="p-3 rounded"
-            style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
-          >
-            {Array.from({ length: 24 }).map((_, h) => (
-              <option key={h} value={h.toString().padStart(2, "0")}>
-                {h.toString().padStart(2, "0")}時
-              </option>
-            ))}
-          </select>
-          <select
-            value={minute}
-            onChange={(e) => setMinute(e.target.value)}
-            className="p-3 rounded"
-            style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
-          >
-            <option value="00">00分</option>
-            <option value="30">30分</option>
-          </select>
-        </div>
-
-        {/* ステータス */}
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="p-3 rounded"
-          style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
-        >
-          {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-
-        {/* 表示月 */}
-        <div>
-          <label className="block mb-2 text-sm" style={{ color: "#7aad99" }}>スケジュール表示月</label>
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="p-3 rounded"
-            style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
-          />
-        </div>
-
-        {/* 参加者 */}
-        <div>
-          <h2
-            className="font-bold mb-3 tracking-widest"
-            style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
-          >
-            参加者
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {users.map((u) => {
-              const isSelected = !!selectedUsers.find(x => x.discord_id === u.discord_id);
-              return (
-                <label
-                  key={u.discord_id}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition"
-                  style={{
-                    backgroundColor: isSelected ? "#4ecdc4" : "#112018",
-                    border: "1px solid #1a3a2e",
-                    color: isSelected ? "#0b1a14" : "#d4e8e0",
-                  }}
-                >
-                  <input type="checkbox" onChange={() => toggleUser(u)} className="hidden" />
-                  {u.user_name}
-                </label>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 作成ボタン */}
-        <button
-          onClick={createEvent}
-          disabled={creating}
-          className="px-8 py-3 rounded-xl font-bold tracking-widest transition"
-          style={{
-            backgroundColor: "#4ecdc4",
-            color: "#0b1a14",
-            fontFamily: "'Cinzel', serif",
-          }}
-        >
-          Create Event
-        </button>
-
-        {/* スケジュール表 */}
-        {selectedUsers.length > 0 && (
-          <div className="overflow-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-[#1e1f22]">
-                  <th className="border p-2 w-16">日付</th>
-                  <th className="border p-2 w-20">開催</th>
-                  {selectedUsers.map((u) => (
-                    <th key={u.discord_id} className="border p-2">
-                      {u.user_name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const overall = getDayStatus(day);
-                  const selected =
-                    eventDate ===
-                    `${selectedMonth}-${String(day).padStart(2, "0")}`;
-
+            {/* 参加者検索 */}
+            <div>
+              <h2 className="font-bold mb-3 tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
+                参加者
+              </h2>
+              <div className="relative mb-3">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#4ecdc4" }}>@</span>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="名前で検索..."
+                  className="w-full pl-8 p-3 rounded"
+                  style={inputStyle}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                {filteredUsers.map((u) => {
+                  const isSelected = !!selectedUsers.find(x => x.discord_id === u.discord_id);
                   return (
-                    <tr key={day}>
-                      <td className="border p-2 text-center">
-                        {day}
-                      </td>
-
-                      <td
-                        onClick={() =>
-                          overall &&
-                          overall !== "×" &&
-                          handleDateSelect(day)
-                        }
-                        className={`border p-2 text-center font-bold cursor-pointer ${
-                          selected ? "ring-2 ring-white" : ""
-                        }`}
-                      >
-                        {overall}
-                      </td>
-
-                      {selectedUsers.map((u) => {
-                        const value =
-                          u.data?.[String(day)] ?? 0;
-                        return (
-                          <td
-                            key={u.discord_id}
-                            className={`border p-2 text-center ${getCellColor(
-                              value
-                            )}`}
-                          >
-                            {getCellLabel(value)}
-                          </td>
-                        );
-                      })}
-                    </tr>
+                    <button
+                      key={u.discord_id}
+                      onClick={() => toggleUser(u)}
+                      className="px-4 py-2 rounded-lg text-sm transition"
+                      style={{
+                        backgroundColor: isSelected ? "#4ecdc4" : "#112018",
+                        border: "1px solid " + (isSelected ? "#4ecdc4" : "#1a3a2e"),
+                        color: isSelected ? "#0b1a14" : "#d4e8e0",
+                        fontWeight: isSelected ? "700" : "400",
+                      }}
+                    >
+                      {isSelected ? "✓ " : ""}{u.user_name}
+                    </button>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </div>
+
+            <button
+              onClick={createEvent}
+              disabled={creating}
+              className="w-full px-8 py-4 rounded-xl font-bold tracking-widest transition"
+              style={{ backgroundColor: "#4ecdc4", color: "#0b1a14", fontFamily: "'Cinzel', serif" }}
+            >
+              {creating ? "作成中..." : "Create Event"}
+            </button>
           </div>
-        )}
+
+          {/* 右カラム：スケジュール表 */}
+          <div>
+            {selectedUsers.length > 0 ? (
+              <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1a3a2e" }}>
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr style={{ backgroundColor: "#071510" }}>
+                      <th className="p-2 text-center" style={{ color: "#7aad99", borderBottom: "1px solid #1a3a2e", width: "40px" }}>日</th>
+                      <th className="p-2 text-center" style={{ color: "#4ecdc4", borderBottom: "1px solid #1a3a2e", width: "40px" }}>判定</th>
+                      {selectedUsers.map((u) => (
+                        <th key={u.discord_id} className="p-2 text-center text-xs" style={{ color: "#7aad99", borderBottom: "1px solid #1a3a2e" }}>
+                          {u.user_name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const overall = getDayStatus(day);
+                      const selected = eventDate === `${selectedMonth}-${String(day).padStart(2, "0")}`;
+
+                      return (
+                        <tr
+                          key={day}
+                          style={{ backgroundColor: selected ? "#1a3a2e" : "transparent" }}
+                        >
+                          <td className="p-2 text-center text-xs" style={{ color: "#7aad99", borderBottom: "1px solid #0f2a1e" }}>{day}</td>
+                          <td
+                            onClick={() => handleDateSelect(day)}
+                            className="p-2 text-center font-bold cursor-pointer"
+                            style={{
+                              borderBottom: "1px solid #0f2a1e",
+                              color: overall === "◎" ? "#4ecdc4" : overall === "×" ? "#c0392b" : "#d4e8e0",
+                              outline: selected ? "2px solid #4ecdc4" : "none",
+                            }}
+                          >
+                            {overall}
+                          </td>
+                          {selectedUsers.map((u) => {
+                            const value = u.data?.[String(day)] ?? 0;
+                            return (
+                              <td
+                                key={u.discord_id}
+                                className="p-2 text-center text-xs"
+                                style={{ backgroundColor: getCellBg(value), borderBottom: "1px solid #0f2a1e", color: "#fff" }}
+                              >
+                                {getCellLabel(value)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div
+                className="h-full flex items-center justify-center rounded-xl p-12 text-center"
+                style={{ border: "1px dashed #1a3a2e", color: "#7aad99" }}
+              >
+                参加者を選択するとスケジュール表が表示されます
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </main>
   );

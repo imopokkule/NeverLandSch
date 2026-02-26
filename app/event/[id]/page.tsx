@@ -11,6 +11,14 @@ type Event = {
   event_date: string | null;
   event_time: string | null;
   discord_channel_id: string | null;
+  participants: { discord_id: string; user_name: string }[] | null;
+  month: string | null;
+};
+
+type User = {
+  discord_id: string;
+  user_name: string;
+  data: Record<string, number>;
 };
 
 const STATUS_OPTIONS = [
@@ -20,6 +28,20 @@ const STATUS_OPTIONS = [
   { value: "closed_murder", label: "〆済みマダミス" },
 ];
 
+const getCellLabel = (value: number) => {
+  if (value === 3) return "◎";
+  if (value === 1) return "〇";
+  if (value === 2) return "△";
+  return "×";
+};
+
+const getCellBg = (value: number) => {
+  if (value === 3) return "#2a6b3a";
+  if (value === 1) return "#6b6b1a";
+  if (value === 2) return "#1a3a6b";
+  return "#6b1a1a";
+};
+
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -28,9 +50,13 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ===============================
-     データ取得
-  =============================== */
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  const [search, setSearch] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  const inputStyle = { backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" };
+
   useEffect(() => {
     const fetchEvent = async () => {
       const { data, error } = await supabase
@@ -39,19 +65,83 @@ export default function EventDetailPage() {
         .eq("discord_channel_id", channelId)
         .single();
 
-      if (!error) setEvent(data);
+      if (!error && data) {
+        setEvent(data);
+        if (data.month) setSelectedMonth(data.month);
+      }
       setLoading(false);
     };
-
     fetchEvent();
   }, [channelId]);
 
-  /* ===============================
-     保存処理
-  =============================== */
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const [{ data: allData }, { data: monthData }] = await Promise.all([
+        supabase.from("schedules").select("discord_id, user_name").not("user_name", "is", null),
+        supabase.from("schedules").select("discord_id, data").eq("month", selectedMonth),
+      ]);
+
+      const unique = Array.from(
+        new Map((allData || []).map((u: any) => [u.discord_id, u])).values()
+      ) as { discord_id: string; user_name: string }[];
+
+      const scheduleMap = new Map((monthData || []).map((s: any) => [s.discord_id, s.data]));
+
+      const merged: User[] = unique.map((u) => ({
+        discord_id: u.discord_id,
+        user_name: u.user_name,
+        data: scheduleMap.get(u.discord_id) || {},
+      }));
+
+      setAllUsers(merged);
+      setSelectedUsers(prev =>
+        prev.map(su => ({ ...su, data: scheduleMap.get(su.discord_id) || {} }))
+      );
+    };
+    fetchUsers();
+  }, [selectedMonth]);
+
+  // イベントロード後に既存参加者をセット
+  useEffect(() => {
+    if (!event?.participants || allUsers.length === 0) return;
+    const existing = event.participants
+      .map(p => allUsers.find(u => u.discord_id === p.discord_id))
+      .filter(Boolean) as User[];
+    if (existing.length > 0) setSelectedUsers(existing);
+  }, [event, allUsers]);
+
+  const toggleUser = (u: User) => {
+    if (selectedUsers.find((x) => x.discord_id === u.discord_id)) {
+      setSelectedUsers(selectedUsers.filter((x) => x.discord_id !== u.discord_id));
+    } else {
+      setSelectedUsers([...selectedUsers, u]);
+    }
+  };
+
+  const getDayStatus = (day: number) => {
+    if (selectedUsers.length === 0) return "";
+    let hasAll = false, hasDay = false, hasNight = false;
+    for (const user of selectedUsers) {
+      const value = user.data?.[String(day)];
+      if (value === 0) return "×";
+      if (value === 3) hasAll = true;
+      if (value === 1) hasDay = true;
+      if (value === 2) hasNight = true;
+    }
+    if (hasAll || (hasDay && hasNight)) return "◎";
+    if (hasDay) return "〇";
+    if (hasNight) return "△";
+    return "×";
+  };
+
+  const handleDateSelect = (day: number) => {
+    if (!event) return;
+    const date = `${selectedMonth}-${String(day).padStart(2, "0")}`;
+    setEvent({ ...event, event_date: date });
+  };
+
   const updateEvent = async () => {
     if (!event) return;
-
     const { error } = await supabase
       .from("events")
       .update({
@@ -59,170 +149,251 @@ export default function EventDetailPage() {
         status: event.status,
         event_date: event.event_date,
         event_time: event.event_time,
+        participants: selectedUsers.map(u => ({ discord_id: u.discord_id, user_name: u.user_name })),
       })
       .eq("id", event.id);
 
-    if (error) {
-      alert("更新失敗");
-    } else {
-      alert("更新成功");
-    }
+    if (error) alert("更新失敗");
+    else alert("更新しました！");
   };
 
-  /* ===============================
-     削除処理
-  =============================== */
   const deleteEvent = async () => {
-    if (!event) return;
-
-    const confirmDelete = confirm("本当に削除しますか？");
-    if (!confirmDelete) return;
-
-    const { error } = await supabase
-      .from("events")
-      .delete()
-      .eq("id", event.id);
-
-    if (error) {
-      alert("削除失敗");
-    } else {
-      alert("削除しました");
-      router.push("/event");
-    }
+    if (!event || !confirm("本当に削除しますか？")) return;
+    const { error } = await supabase.from("events").delete().eq("id", event.id);
+    if (error) alert("削除失敗");
+    else { alert("削除しました"); router.push("/event"); }
   };
 
-  if (loading)
-    return (
-      <div className="p-10 text-white bg-[#2b2d31]">
-        Loading...
-      </div>
-    );
+  const filteredUsers = allUsers.filter(u =>
+    u.user_name.toLowerCase().includes(search.toLowerCase())
+  );
 
-  if (!event)
-    return (
-      <div className="p-10 text-white bg-[#2b2d31]">
-        Not Found
-      </div>
-    );
+  const daysInMonth = new Date(
+    Number(selectedMonth.slice(0, 4)),
+    Number(selectedMonth.slice(5, 7)),
+    0
+  ).getDate();
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0b1a14", color: "#4ecdc4" }}>
+      Loading...
+    </div>
+  );
+
+  if (!event) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0b1a14", color: "#c0392b" }}>
+      Not Found
+    </div>
+  );
 
   return (
-    <main className="min-h-screen bg-[#2b2d31] text-white p-10">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0b1a14", color: "#d4e8e0" }}>
+      <div className="max-w-6xl mx-auto space-y-8">
 
-        <h1 className="text-2xl font-bold">
-          イベント編集
-        </h1>
-
-        {/* タイトル */}
-        <div>
-          <label className="block mb-1">タイトル</label>
-          <input
-            value={event.title ?? ""}
-            onChange={(e) =>
-              setEvent({ ...event, title: e.target.value })
-            }
-            className="w-full bg-[#1e1f22] p-2 rounded"
-          />
+        {/* ページヘッダー */}
+        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1a3a2e" }}>
+          <h1 className="text-4xl font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
+            Event Detail
+          </h1>
+          <p style={{ color: "#7aad99" }} className="text-sm tracking-wide">
+            イベントの詳細編集・参加者の変更・日程の変更ができます。
+          </p>
         </div>
 
-        {/* 日付 */}
-        <div>
-          <label className="block mb-1">日付</label>
-          <input
-            type="date"
-            value={event.event_date ?? ""}
-            onChange={(e) =>
-              setEvent({
-                ...event,
-                event_date: e.target.value,
-              })
-            }
-            className="w-full bg-[#1e1f22] p-2 rounded"
-          />
-        </div>
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* 左カラム */}
+          <div className="space-y-4">
+            <div>
+              <label className="block mb-1 text-sm" style={{ color: "#7aad99" }}>タイトル</label>
+              <input
+                value={event.title ?? ""}
+                onChange={(e) => setEvent({ ...event, title: e.target.value })}
+                className="w-full p-3 rounded"
+                style={inputStyle}
+              />
+            </div>
 
-        {/* 時間（00 / 30のみ） */}
-        <div>
-          <label className="block mb-1">時間</label>
+            <div>
+              <label className="block mb-1 text-sm" style={{ color: "#7aad99" }}>日付</label>
+              <input
+                type="date"
+                value={event.event_date ?? ""}
+                onChange={(e) => setEvent({ ...event, event_date: e.target.value })}
+                className="w-full p-3 rounded"
+                style={inputStyle}
+              />
+            </div>
 
-          <div className="flex gap-2">
-            <select
-              value={event.event_time?.split(":")[0] ?? "18"}
-              onChange={(e) =>
-                setEvent({
-                  ...event,
-                  event_time: `${e.target.value}:${
-                    event.event_time?.split(":")[1] ?? "00"
-                  }`,
-                })
-              }
-              className="bg-[#1e1f22] p-2 rounded"
-            >
-              {Array.from({ length: 24 }).map((_, h) => (
-                <option
-                  key={h}
-                  value={h.toString().padStart(2, "0")}
+            <div>
+              <label className="block mb-1 text-sm" style={{ color: "#7aad99" }}>時間</label>
+              <div className="flex gap-2">
+                <select
+                  value={event.event_time?.split(":")[0] ?? "18"}
+                  onChange={(e) => setEvent({ ...event, event_time: `${e.target.value}:${event.event_time?.split(":")[1] ?? "00"}` })}
+                  className="p-3 rounded"
+                  style={inputStyle}
                 >
-                  {h.toString().padStart(2, "0")}時
-                </option>
-              ))}
-            </select>
+                  {Array.from({ length: 24 }).map((_, h) => (
+                    <option key={h} value={h.toString().padStart(2, "0")}>{h.toString().padStart(2, "0")}時</option>
+                  ))}
+                </select>
+                <select
+                  value={event.event_time?.split(":")[1] ?? "00"}
+                  onChange={(e) => setEvent({ ...event, event_time: `${event.event_time?.split(":")[0] ?? "18"}:${e.target.value}` })}
+                  className="p-3 rounded"
+                  style={inputStyle}
+                >
+                  <option value="00">00分</option>
+                  <option value="30">30分</option>
+                </select>
+              </div>
+            </div>
 
-            <select
-              value={event.event_time?.split(":")[1] ?? "00"}
-              onChange={(e) =>
-                setEvent({
-                  ...event,
-                  event_time: `${
-                    event.event_time?.split(":")[0] ?? "18"
-                  }:${e.target.value}`,
-                })
-              }
-              className="bg-[#1e1f22] p-2 rounded"
-            >
-              <option value="00">00分</option>
-              <option value="30">30分</option>
-            </select>
+            <div>
+              <label className="block mb-1 text-sm" style={{ color: "#7aad99" }}>ステータス</label>
+              <select
+                value={event.status}
+                onChange={(e) => setEvent({ ...event, status: e.target.value })}
+                className="w-full p-3 rounded"
+                style={inputStyle}
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block mb-2 text-sm" style={{ color: "#7aad99" }}>スケジュール表示月</label>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full p-3 rounded"
+                style={inputStyle}
+              />
+            </div>
+
+            {/* 参加者検索 */}
+            <div>
+              <h2 className="font-bold mb-3 tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
+                参加者
+              </h2>
+              <div className="relative mb-3">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#4ecdc4" }}>@</span>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="名前で検索..."
+                  className="w-full pl-8 p-3 rounded"
+                  style={inputStyle}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                {filteredUsers.map((u) => {
+                  const isSelected = !!selectedUsers.find(x => x.discord_id === u.discord_id);
+                  return (
+                    <button
+                      key={u.discord_id}
+                      onClick={() => toggleUser(u)}
+                      className="px-4 py-2 rounded-lg text-sm transition"
+                      style={{
+                        backgroundColor: isSelected ? "#4ecdc4" : "#112018",
+                        border: "1px solid " + (isSelected ? "#4ecdc4" : "#1a3a2e"),
+                        color: isSelected ? "#0b1a14" : "#d4e8e0",
+                        fontWeight: isSelected ? "700" : "400",
+                      }}
+                    >
+                      {isSelected ? "✓ " : ""}{u.user_name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ボタン */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={updateEvent}
+                className="flex-1 px-6 py-3 rounded-xl font-bold tracking-widest"
+                style={{ backgroundColor: "#4ecdc4", color: "#0b1a14", fontFamily: "'Cinzel', serif" }}
+              >
+                Save
+              </button>
+              <button
+                onClick={deleteEvent}
+                className="px-6 py-3 rounded-xl font-bold tracking-widest"
+                style={{ backgroundColor: "#6b1a1a", color: "#d4e8e0", border: "1px solid #c0392b" }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+
+          {/* 右カラム：スケジュール表 */}
+          <div>
+            {selectedUsers.length > 0 ? (
+              <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1a3a2e" }}>
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr style={{ backgroundColor: "#071510" }}>
+                      <th className="p-2 text-center" style={{ color: "#7aad99", borderBottom: "1px solid #1a3a2e", width: "40px" }}>日</th>
+                      <th className="p-2 text-center" style={{ color: "#4ecdc4", borderBottom: "1px solid #1a3a2e", width: "40px" }}>判定</th>
+                      {selectedUsers.map((u) => (
+                        <th key={u.discord_id} className="p-2 text-center text-xs" style={{ color: "#7aad99", borderBottom: "1px solid #1a3a2e" }}>
+                          {u.user_name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const overall = getDayStatus(day);
+                      const selected = event.event_date === `${selectedMonth}-${String(day).padStart(2, "0")}`;
+
+                      return (
+                        <tr key={day} style={{ backgroundColor: selected ? "#1a3a2e" : "transparent" }}>
+                          <td className="p-2 text-center text-xs" style={{ color: "#7aad99", borderBottom: "1px solid #0f2a1e" }}>{day}</td>
+                          <td
+                            onClick={() => handleDateSelect(day)}
+                            className="p-2 text-center font-bold cursor-pointer"
+                            style={{
+                              borderBottom: "1px solid #0f2a1e",
+                              color: overall === "◎" ? "#4ecdc4" : overall === "×" ? "#c0392b" : "#d4e8e0",
+                              outline: selected ? "2px solid #4ecdc4" : "none",
+                            }}
+                          >
+                            {overall}
+                          </td>
+                          {selectedUsers.map((u) => {
+                            const value = u.data?.[String(day)] ?? 0;
+                            return (
+                              <td
+                                key={u.discord_id}
+                                className="p-2 text-center text-xs"
+                                style={{ backgroundColor: getCellBg(value), borderBottom: "1px solid #0f2a1e", color: "#fff" }}
+                              >
+                                {getCellLabel(value)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div
+                className="h-full flex items-center justify-center rounded-xl p-12 text-center"
+                style={{ border: "1px dashed #1a3a2e", color: "#7aad99" }}
+              >
+                参加者を選択するとスケジュール表が表示されます
+              </div>
+            )}
           </div>
         </div>
-
-        {/* ステータス */}
-        <div>
-          <label className="block mb-1">ステータス</label>
-          <select
-            value={event.status}
-            onChange={(e) =>
-              setEvent({
-                ...event,
-                status: e.target.value,
-              })
-            }
-            className="w-full bg-[#1e1f22] p-2 rounded"
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 保存ボタン */}
-        <button
-          onClick={updateEvent}
-          className="bg-[#5865F2] px-6 py-2 rounded hover:bg-[#4752c4]"
-        >
-          保存
-        </button>
-
-        {/* 削除ボタン */}
-        <button
-          onClick={deleteEvent}
-          className="bg-[#f23f42] px-6 py-2 rounded hover:bg-[#d13235] mt-4"
-        >
-          削除
-        </button>
-
       </div>
     </main>
   );
