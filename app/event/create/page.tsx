@@ -24,12 +24,19 @@ const getCellLabel = (value: number) => {
   return "×";
 };
 
-const getCellBg = (value: number) => {
-  if (value === 3) return "#1e4a2e";
-  if (value === 1) return "#3a3a12";
-  if (value === 2) return "#162545";
-  return "#3a1212";
+const getCellStyle = (value: number) => {
+  if (value === 3) return { backgroundColor: "#0a2818", color: "#4ef0a0", textShadow: "0 0 8px rgba(78,240,160,0.8)", boxShadow: "inset 0 0 12px rgba(78,240,160,0.12)" };
+  if (value === 1) return { backgroundColor: "#201e08", color: "#e8d040", textShadow: "0 0 8px rgba(232,208,64,0.8)", boxShadow: "inset 0 0 12px rgba(232,208,64,0.12)" };
+  if (value === 2) return { backgroundColor: "#061220", color: "#508cf0", textShadow: "0 0 8px rgba(80,140,240,0.8)", boxShadow: "inset 0 0 12px rgba(80,140,240,0.12)" };
+  return { backgroundColor: "#200606", color: "#f04848", textShadow: "0 0 8px rgba(240,72,72,0.8)", boxShadow: "inset 0 0 12px rgba(240,72,72,0.12)" };
 };
+
+const LEGEND = [
+  { symbol: "◎", label: "全日",    color: "#4ef0a0" },
+  { symbol: "〇", label: "昼のみ",  color: "#e8d040" },
+  { symbol: "△", label: "夜のみ",  color: "#508cf0" },
+  { symbol: "×", label: "参加不可", color: "#f04848" },
+];
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -314,6 +321,15 @@ export default function EventCreatePage() {
                 ›
               </button>
             </div>
+            {/* 凡例 */}
+            <div className="flex flex-wrap gap-4 px-1 text-xs" style={{ color: "#9ec9b4" }}>
+              {LEGEND.map(({ symbol, label, color }) => (
+                <span key={symbol} className="flex items-center gap-1">
+                  <span style={{ color, fontWeight: "bold", textShadow: `0 0 6px ${color}` }}>{symbol}</span>
+                  <span>{label}</span>
+                </span>
+              ))}
+            </div>
             {selectedUsers.length > 0 ? (
               <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1e3d45" }}>
                 <table className="w-full text-sm border-collapse">
@@ -349,7 +365,8 @@ export default function EventCreatePage() {
                             className="p-2 text-center font-bold cursor-pointer"
                             style={{
                               borderBottom: "1px solid #163240",
-                              color: overall === "◎" ? "#4ecdc4" : overall === "×" ? "#c0392b" : "#e8f5f0",
+                              color: overall === "◎" ? "#4ef0a0" : overall === "〇" ? "#e8d040" : overall === "△" ? "#508cf0" : overall === "×" ? "#f04848" : "#e8f5f0",
+                              textShadow: overall ? `0 0 8px ${overall === "◎" ? "rgba(78,240,160,0.7)" : overall === "〇" ? "rgba(232,208,64,0.7)" : overall === "△" ? "rgba(80,140,240,0.7)" : "rgba(240,72,72,0.7)"}` : "none",
                               outline: selected ? "2px solid #4ecdc4" : "none",
                             }}
                           >
@@ -361,7 +378,7 @@ export default function EventCreatePage() {
                               <td
                                 key={u.discord_id}
                                 className="p-2 text-center text-xs"
-                                style={{ backgroundColor: getCellBg(value), borderBottom: "1px solid #163240", color: "#fff" }}
+                                style={{ ...getCellStyle(value), borderBottom: "1px solid #163240" }}
                               >
                                 {getCellLabel(value)}
                               </td>

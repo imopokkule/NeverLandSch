@@ -7,18 +7,25 @@ import { useSession } from "next-auth/react";
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 const OPT_COLORS: Record<string, string> = {
-  "null": "#163240",
-  "0": "#5c1a1a",
-  "1": "#4a6c2a",
-  "2": "#1a3a5c",
-  "3": "#1a4a3a",
+  "null": "#0e2030",
+  "0": "#200606",
+  "1": "#201e08",
+  "2": "#061220",
+  "3": "#0a2818",
 };
 const OPT_ACTIVE_COLORS: Record<string, string> = {
   "null": "#2a5a3e",
-  "0": "#c0392b",
-  "1": "#7ab648",
-  "2": "#3498db",
-  "3": "#4ecdc4",
+  "0": "#e85050",
+  "1": "#d8c840",
+  "2": "#508cf0",
+  "3": "#4ef0a0",
+};
+const OPT_GLOW: Record<string, string> = {
+  "null": "rgba(78,205,196,0.4)",
+  "0": "rgba(232,80,80,0.5)",
+  "1": "rgba(216,200,64,0.5)",
+  "2": "rgba(80,140,240,0.5)",
+  "3": "rgba(78,240,160,0.5)",
 };
 
 export default function SchedulePage() {
@@ -113,20 +120,36 @@ export default function SchedulePage() {
         </div>
 
         {/* 凡例 */}
-        <div className="flex flex-wrap gap-3 text-xs">
-          {OPTIONS.filter(o => o.value !== null).map(opt => (
-            <span
-              key={String(opt.value)}
-              className="px-3 py-1 rounded-full"
-              style={{
-                backgroundColor: OPT_ACTIVE_COLORS[String(opt.value)],
-                color: "#0a1a1e",
-                fontWeight: "bold",
-              }}
-            >
-              {opt.label}
-            </span>
-          ))}
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-3 text-xs">
+            {OPTIONS.filter(o => o.value !== null).map(opt => (
+              <span
+                key={String(opt.value)}
+                className="px-3 py-1 rounded-full"
+                style={{
+                  backgroundColor: OPT_ACTIVE_COLORS[String(opt.value)],
+                  color: "#0a1a1e",
+                  fontWeight: "bold",
+                  boxShadow: `0 0 8px ${OPT_GLOW[String(opt.value)]}`,
+                }}
+              >
+                {opt.label}
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-4 text-xs" style={{ color: "#9ec9b4" }}>
+            {[
+              { symbol: "◎", label: "全日",    color: "#4ef0a0" },
+              { symbol: "〇", label: "昼のみ",  color: "#e8d040" },
+              { symbol: "△", label: "夜のみ",  color: "#508cf0" },
+              { symbol: "×", label: "参加不可", color: "#f04848" },
+            ].map(({ symbol, label, color }) => (
+              <span key={symbol} className="flex items-center gap-1">
+                <span style={{ color, fontWeight: "bold", textShadow: `0 0 6px ${color}` }}>{symbol}</span>
+                <span>{label}</span>
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* 日程リスト */}
@@ -182,6 +205,7 @@ export default function SchedulePage() {
                           color: isActive ? "#0a1a1e" : "#9ec9b4",
                           fontWeight: isActive ? "bold" : "normal",
                           border: isActive ? "none" : "1px solid #1e3d45",
+                          boxShadow: isActive ? `0 0 12px ${OPT_GLOW[String(opt.value)]}` : "none",
                         }}
                       >
                         {opt.label}
