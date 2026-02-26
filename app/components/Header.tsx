@@ -24,12 +24,21 @@ export default function Header() {
           <Link href="/event/create" className="hover:underline">CREATE</Link>
           <Link href="/schedule" className="hover:underline">SCHEDULE</Link>
           {session && (
-            <button
-              onClick={() => signOut()}
-              className="bg-white text-[#5865F2] px-4 py-2 rounded-full font-semibold hover:bg-gray-100 transition"
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-3">
+              {session.user?.image && (
+                <img
+                  src={session.user.image}
+                  alt="avatar"
+                  className="w-8 h-8 rounded-full"
+                />
+              )}
+              <button
+                onClick={() => signOut()}
+                className="bg-white text-[#5865F2] px-4 py-2 rounded-full font-semibold hover:bg-gray-100 transition"
+              >
+                Logout
+              </button>
+            </div>
           )}
         </nav>
 
@@ -52,12 +61,22 @@ export default function Header() {
           <Link href="/event/create" onClick={() => setMenuOpen(false)} className="hover:underline">CREATE</Link>
           <Link href="/schedule" onClick={() => setMenuOpen(false)} className="hover:underline">SCHEDULE</Link>
           {session && (
-            <button
-              onClick={() => { signOut(); setMenuOpen(false); }}
-              className="bg-white text-[#5865F2] px-4 py-2 rounded-full font-semibold hover:bg-gray-100 transition w-fit"
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-3">
+              {session.user?.image && (
+                <img
+                  src={session.user.image}
+                  alt="avatar"
+                  className="w-8 h-8 rounded-full"
+                />
+              )}
+              <span className="text-sm">{session.user?.name}</span>
+              <button
+                onClick={() => { signOut(); setMenuOpen(false); }}
+                className="bg-white text-[#5865F2] px-4 py-2 rounded-full font-semibold hover:bg-gray-100 transition w-fit"
+              >
+                Logout
+              </button>
+            </div>
           )}
         </div>
       )}

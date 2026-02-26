@@ -8,7 +8,7 @@ export default function HomePage() {
       <div className="text-center space-y-8">
 
         <h1 className="text-5xl font-bold">
-          Event Manager
+          Never Land Schedule Manager
         </h1>
 
         <div className="flex gap-6 justify-center">
