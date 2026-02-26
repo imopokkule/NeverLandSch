@@ -66,8 +66,8 @@ const REVERSE_MAP: Record<string, string> = Object.fromEntries(
    Bot Ready
 =============================== */
 
-client.once("ready", () => {
-  console.log(`✅ Logged in as ${client.user?.tag}`);
+client.once("clientReady", (readyClient) => {
+  console.log(`✅ Logged in as ${readyClient.user.tag}`);
   console.log("👂 Listening for Discord events (Discord → DB direction)");
 });
 
