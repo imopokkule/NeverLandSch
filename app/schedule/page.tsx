@@ -28,7 +28,7 @@ export default function SchedulePage() {
       const { data } = await supabase
         .from("schedules")
         .select("data")
-        .eq("discord_id", session.user.id)
+        .eq("discord_id", session.user?.id)
         .eq("month", month)
         .maybeSingle();
 
