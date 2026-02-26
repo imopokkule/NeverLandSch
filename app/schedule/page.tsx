@@ -14,6 +14,7 @@ export default function SchedulePage() {
   const [availability, setAvailability] = useState<
     { [day: number]: number | null }
   >({});
+  const [saved, setSaved] = useState(false);
 
   const daysInMonth = new Date(
     Number(month.split("-")[0]),
@@ -48,6 +49,7 @@ export default function SchedulePage() {
     };
 
     setAvailability(newAvailability);
+    setSaved(false);
 
     await supabase.from("schedules").upsert({
       discord_id: session?.user?.id,
@@ -55,6 +57,8 @@ export default function SchedulePage() {
       month,
       data: newAvailability,
     });
+
+    setSaved(true);
   };
 
   return (
@@ -72,6 +76,10 @@ export default function SchedulePage() {
           onChange={(e) => setMonth(e.target.value)}
           className="border p-2 rounded"
         />
+
+        {saved && (
+          <p className="text-green-600 font-semibold">保存しました！</p>
+        )}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
