@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 const OPT_COLORS: Record<string, string> = {
-  "null": "#1e3d2a",
+  "null": "#163240",
   "0": "#5c1a1a",
   "1": "#4a6c2a",
   "2": "#1a3a5c",
@@ -75,11 +75,11 @@ export default function SchedulePage() {
   };
 
   return (
-    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0f2318" }}>
+    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0a1a1e" }}>
       <div className="max-w-3xl mx-auto space-y-8">
 
         {/* ページヘッダー */}
-        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#2a4d3c" }}>
+        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1e3d45" }}>
           <h1
             className="text-4xl font-bold tracking-widest"
             style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
@@ -99,8 +99,8 @@ export default function SchedulePage() {
             onChange={(e) => { setMonth(e.target.value); setSaved(false); }}
             className="px-4 py-2 rounded"
             style={{
-              backgroundColor: "#172d20",
-              border: "1px solid #2a4d3c",
+              backgroundColor: "#112428",
+              border: "1px solid #1e3d45",
               color: "#e8f5f0",
             }}
           />
@@ -117,7 +117,7 @@ export default function SchedulePage() {
               className="px-3 py-1 rounded-full"
               style={{
                 backgroundColor: OPT_ACTIVE_COLORS[String(opt.value)],
-                color: "#0f2318",
+                color: "#0a1a1e",
                 fontWeight: "bold",
               }}
             >
@@ -145,8 +145,8 @@ export default function SchedulePage() {
                 key={day}
                 className="flex items-center gap-3 p-3 rounded-lg"
                 style={{
-                  backgroundColor: "#172d20",
-                  border: `1px solid ${isSunOrSat ? (dow === 0 ? "#4d2a2a" : "#2a2a4d") : "#2a4d3c"}`,
+                  backgroundColor: "#112428",
+                  border: `1px solid ${isSunOrSat ? (dow === 0 ? "#3d1e2a" : "#1e2a3d") : "#1e3d45"}`,
                 }}
               >
                 {/* 日付 + 曜日 */}
@@ -176,9 +176,9 @@ export default function SchedulePage() {
                           backgroundColor: isActive
                             ? OPT_ACTIVE_COLORS[String(opt.value)]
                             : OPT_COLORS[String(opt.value)],
-                          color: isActive ? "#0f2318" : "#9ec9b4",
+                          color: isActive ? "#0a1a1e" : "#9ec9b4",
                           fontWeight: isActive ? "bold" : "normal",
-                          border: isActive ? "none" : "1px solid #2a4d3c",
+                          border: isActive ? "none" : "1px solid #1e3d45",
                         }}
                       >
                         {opt.label}

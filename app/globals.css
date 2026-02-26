@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --bg-dark: #0f2318;
-  --bg-card: #172d20;
+  --bg-dark: #0a1a1e;
+  --bg-card: #112428;
   --accent: #4ecdc4;
   --accent-dark: #2a9d8f;
   --text-light: #e8f5f0;
   --text-muted: #9ec9b4;
-  --border: #2a4d3c;
+  --border: #1e3d45;
 }
 
 body {
@@ -30,7 +30,7 @@ body {
 
 @layer base {
   body {
-    background-color: #0f2318;
-    color: #d4e8e0;
+    background-color: #0a1a1e;
+    color: #e8f5f0;
   }
 }

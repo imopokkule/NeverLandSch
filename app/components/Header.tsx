@@ -9,7 +9,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header style={{ backgroundColor: "#0a1e10", borderBottom: "1px solid #2a4d3c" }}>
+    <header style={{ backgroundColor: "#081519", borderBottom: "1px solid #1e3d45" }}>
       <div className="max-w-6xl mx-auto flex justify-between items-center px-8 py-4">
 
         {/* ロゴ */}
@@ -78,7 +78,7 @@ export default function Header() {
       {menuOpen && (
         <div
           className="md:hidden flex flex-col gap-4 px-8 pb-6 text-sm"
-          style={{ borderTop: "1px solid #2a4d3c" }}
+          style={{ borderTop: "1px solid #1e3d45" }}
         >
           {["HOME", "EVENTS", "CREATE", "SCHEDULE"].map((label, i) => {
             const hrefs = ["/", "/event", "/event/create", "/schedule"];

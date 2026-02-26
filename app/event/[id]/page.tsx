@@ -55,7 +55,7 @@ export default function EventDetailPage() {
   const [search, setSearch] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
-  const inputStyle = { backgroundColor: "#172d20", border: "1px solid #2a4d3c", color: "#e8f5f0" };
+  const inputStyle = { backgroundColor: "#112428", border: "1px solid #1e3d45", color: "#e8f5f0" };
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -212,23 +212,23 @@ export default function EventDetailPage() {
   ).getDate();
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0f2318", color: "#4ecdc4" }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0a1a1e", color: "#4ecdc4" }}>
       Loading...
     </div>
   );
 
   if (!event) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0f2318", color: "#c0392b" }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0a1a1e", color: "#c0392b" }}>
       Not Found
     </div>
   );
 
   return (
-    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0f2318", color: "#e8f5f0" }}>
+    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0a1a1e", color: "#e8f5f0" }}>
       <div className="max-w-6xl mx-auto space-y-8">
 
         {/* ページヘッダー */}
-        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#2a4d3c" }}>
+        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1e3d45" }}>
           <h1 className="text-4xl font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
             Event Detail
           </h1>
@@ -335,8 +335,8 @@ export default function EventDetailPage() {
                       onClick={() => toggleUser(u)}
                       className="px-4 py-2 rounded-lg text-sm transition"
                       style={{
-                        backgroundColor: isSelected ? "#4ecdc4" : "#172d20",
-                        border: "1px solid " + (isSelected ? "#4ecdc4" : "#2a4d3c"),
+                        backgroundColor: isSelected ? "#4ecdc4" : "#112428",
+                        border: "1px solid " + (isSelected ? "#4ecdc4" : "#1e3d45"),
                         color: isSelected ? "#0b1a14" : "#e8f5f0",
                         fontWeight: isSelected ? "700" : "400",
                       }}
@@ -370,14 +370,14 @@ export default function EventDetailPage() {
           {/* 右カラム：スケジュール表 */}
           <div>
             {selectedUsers.length > 0 ? (
-              <div className="overflow-auto rounded-xl" style={{ border: "1px solid #2a4d3c" }}>
+              <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1e3d45" }}>
                 <table className="w-full text-sm border-collapse">
                   <thead>
-                    <tr style={{ backgroundColor: "#0a1e10" }}>
-                      <th className="p-2 text-center" style={{ color: "#9ec9b4", borderBottom: "1px solid #2a4d3c", width: "40px" }}>日</th>
-                      <th className="p-2 text-center" style={{ color: "#4ecdc4", borderBottom: "1px solid #2a4d3c", width: "40px" }}>判定</th>
+                    <tr style={{ backgroundColor: "#081519" }}>
+                      <th className="p-2 text-center" style={{ color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "40px" }}>日</th>
+                      <th className="p-2 text-center" style={{ color: "#4ecdc4", borderBottom: "1px solid #1e3d45", width: "40px" }}>判定</th>
                       {selectedUsers.map((u) => (
-                        <th key={u.discord_id} className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #2a4d3c" }}>
+                        <th key={u.discord_id} className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #1e3d45" }}>
                           {u.user_name}
                         </th>
                       ))}
@@ -390,13 +390,13 @@ export default function EventDetailPage() {
                       const selected = event.event_date === `${selectedMonth}-${String(day).padStart(2, "0")}`;
 
                       return (
-                        <tr key={day} style={{ backgroundColor: selected ? "#2a4d3c" : "transparent" }}>
-                          <td className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #1a3d2a" }}>{day}</td>
+                        <tr key={day} style={{ backgroundColor: selected ? "#1e3d45" : "transparent" }}>
+                          <td className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #163240" }}>{day}</td>
                           <td
                             onClick={() => handleDateSelect(day)}
                             className="p-2 text-center font-bold cursor-pointer"
                             style={{
-                              borderBottom: "1px solid #1a3d2a",
+                              borderBottom: "1px solid #163240",
                               color: overall === "◎" ? "#4ecdc4" : overall === "×" ? "#c0392b" : "#e8f5f0",
                               outline: selected ? "2px solid #4ecdc4" : "none",
                             }}
@@ -409,7 +409,7 @@ export default function EventDetailPage() {
                               <td
                                 key={u.discord_id}
                                 className="p-2 text-center text-xs"
-                                style={{ backgroundColor: getCellBg(value), borderBottom: "1px solid #1a3d2a", color: "#fff" }}
+                                style={{ backgroundColor: getCellBg(value), borderBottom: "1px solid #163240", color: "#fff" }}
                               >
                                 {getCellLabel(value)}
                               </td>
@@ -424,7 +424,7 @@ export default function EventDetailPage() {
             ) : (
               <div
                 className="h-full flex items-center justify-center rounded-xl p-12 text-center"
-                style={{ border: "1px dashed #2a4d3c", color: "#9ec9b4" }}
+                style={{ border: "1px dashed #1e3d45", color: "#9ec9b4" }}
               >
                 参加者を選択するとスケジュール表が表示されます
               </div>

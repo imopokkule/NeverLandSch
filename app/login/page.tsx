@@ -6,7 +6,7 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center text-white gap-10"
-      style={{ backgroundColor: "#0f2318" }}
+      style={{ backgroundColor: "#0a1a1e" }}
     >
       {/* タイトル */}
       <div className="text-center space-y-3">
@@ -43,7 +43,7 @@ export default function LoginPage() {
         }
         className="flex items-center gap-3 px-10 py-4 rounded-xl text-lg font-semibold transition"
         style={{
-          backgroundColor: "#2a4d3c",
+          backgroundColor: "#1e3d45",
           border: "1px solid #4ecdc4",
           color: "#4ecdc4",
           fontFamily: "'Cinzel', serif",
@@ -51,10 +51,10 @@ export default function LoginPage() {
         }}
         onMouseEnter={e => {
           (e.currentTarget as HTMLElement).style.backgroundColor = "#4ecdc4";
-          (e.currentTarget as HTMLElement).style.color = "#0f2318";
+          (e.currentTarget as HTMLElement).style.color = "#0a1a1e";
         }}
         onMouseLeave={e => {
-          (e.currentTarget as HTMLElement).style.backgroundColor = "#2a4d3c";
+          (e.currentTarget as HTMLElement).style.backgroundColor = "#1e3d45";
           (e.currentTarget as HTMLElement).style.color = "#4ecdc4";
         }}
       >

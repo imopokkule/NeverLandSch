@@ -27,7 +27,7 @@ export default function HomePage() {
   return (
     <main
       className="min-h-screen flex items-center justify-center p-8"
-      style={{ backgroundColor: "#0f2318" }}
+      style={{ backgroundColor: "#0a1a1e" }}
     >
       <div className="text-center space-y-12">
 
@@ -81,7 +81,7 @@ export default function HomePage() {
               <div
                 className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none hidden md:block"
                 style={{
-                  backgroundColor: "#172d20",
+                  backgroundColor: "#112428",
                   border: "1px solid #4ecdc4",
                   color: "#e8f5f0",
                   fontFamily: "Arial, sans-serif",
