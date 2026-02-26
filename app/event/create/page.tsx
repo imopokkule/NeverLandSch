@@ -129,9 +129,9 @@ export default function EventCreatePage() {
         event_date: eventDate,
         event_time: `${hour}:${minute}`,
         month: selectedMonth,
-        creator_id: session.user.id,
-        creator_name: session.user.name,
-        creator_image: session.user.image,
+        creator_id: session.user?.id,
+        creator_name: session.user?.name,
+        creator_image: session.user?.image,
       });
 
       alert("作成成功 🎉");
