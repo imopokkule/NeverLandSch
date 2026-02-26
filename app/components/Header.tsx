@@ -23,7 +23,7 @@ export default function Header() {
 
         {/* PCナビ */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-          {["HOME", "EVENTS", "CREATE", "SCHEDULE"].map((label, i) => {
+          {["HOME", "SESSIONS", "CREATE", "SCHEDULE"].map((label, i) => {
             const hrefs = ["/", "/event", "/event/create", "/schedule"];
             return (
               <Link
@@ -80,7 +80,7 @@ export default function Header() {
           className="md:hidden flex flex-col gap-4 px-8 pb-6 text-sm"
           style={{ borderTop: "1px solid #1e3d45" }}
         >
-          {["HOME", "EVENTS", "CREATE", "SCHEDULE"].map((label, i) => {
+          {["HOME", "SESSIONS", "CREATE", "SCHEDULE"].map((label, i) => {
             const hrefs = ["/", "/event", "/event/create", "/schedule"];
             return (
               <Link

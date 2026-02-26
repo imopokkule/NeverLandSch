@@ -54,10 +54,10 @@ export default function EventPage() {
             className="text-4xl font-bold tracking-widest"
             style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
           >
-            Events
+            Sessions
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            開催予定・募集中のイベント一覧です。イベントをクリックすると詳細を確認できます。
+            開催予定・募集中のセッション一覧です。セッションをクリックすると詳細を確認できます。
           </p>
         </div>
 
@@ -123,7 +123,7 @@ export default function EventPage() {
           ))}
 
           {filtered.length === 0 && (
-            <p className="text-center py-12" style={{ color: "#9ec9b4" }}>イベントがありません</p>
+            <p className="text-center py-12" style={{ color: "#9ec9b4" }}>セッションがありません</p>
           )}
         </div>
       </div>

@@ -259,10 +259,10 @@ export default function EventDetailPage() {
         {/* ページヘッダー */}
         <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1e3d45" }}>
           <h1 className="text-4xl font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
-            Event Detail
+            Session Detail
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            イベントの詳細編集・参加者の変更・日程の変更ができます。
+            セッションの詳細編集・参加者の変更・日程の変更ができます。
           </p>
         </div>
 

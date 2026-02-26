@@ -205,10 +205,10 @@ export default function EventCreatePage() {
         {/* ページヘッダー */}
         <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1e3d45" }}>
           <h1 className="text-4xl font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
-            Create Event
+            Create Session
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            参加者のスケジュールを確認しながらイベントを作成できます。日程表のセルをクリックして開催日を選択してください。
+            参加者のスケジュールを確認しながらセッションを作成できます。日程表のセルをクリックして開催日を選択してください。
           </p>
         </div>
 
@@ -290,7 +290,7 @@ export default function EventCreatePage() {
               className="w-full px-8 py-4 rounded-xl font-bold tracking-widest transition"
               style={{ backgroundColor: "#4ecdc4", color: "#0b1a14", fontFamily: "'Cinzel', serif" }}
             >
-              {creating ? "作成中..." : "Create Event"}
+              {creating ? "作成中..." : "Create Session"}
             </button>
           </div>
 

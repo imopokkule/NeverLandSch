@@ -5,15 +5,15 @@ import Link from "next/link";
 const PAGES = [
   {
     href: "/event",
-    label: "Events",
-    desc: "開催予定・募集中のイベント一覧",
-    tooltip: "参加者募集中のイベントや立卓済みのセッションを確認できます",
+    label: "Sessions",
+    desc: "開催予定・募集中のセッション一覧",
+    tooltip: "参加者募集中のセッションや立卓済みのセッションを確認できます",
   },
   {
     href: "/event/create",
     label: "Create",
-    desc: "新しいイベントを作成",
-    tooltip: "参加者のスケジュールを参照しながら新しいイベントを作成します",
+    desc: "新しいセッションを作成",
+    tooltip: "参加者のスケジュールを参照しながら新しいセッションを作成します",
   },
   {
     href: "/schedule",
