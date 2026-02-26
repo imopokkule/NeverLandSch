@@ -36,10 +36,25 @@ const getCellLabel = (value: number) => {
 };
 
 const getCellBg = (value: number) => {
-  if (value === 3) return "#2a6b3a";
-  if (value === 1) return "#6b6b1a";
-  if (value === 2) return "#1a3a6b";
-  return "#6b1a1a";
+  if (value === 3) return "#1e4a2e";
+  if (value === 1) return "#3a3a12";
+  if (value === 2) return "#162545";
+  return "#3a1212";
+};
+
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+const getWeekday = (yearMonth: string, day: number) => {
+  const [y, m] = yearMonth.split("-").map(Number);
+  return WEEKDAYS[new Date(y, m - 1, day).getDay()];
+};
+
+const getWeekdayColor = (yearMonth: string, day: number) => {
+  const [y, m] = yearMonth.split("-").map(Number);
+  const dow = new Date(y, m - 1, day).getDay();
+  if (dow === 0) return "#e07070";
+  if (dow === 6) return "#7099e0";
+  return "#9ec9b4";
 };
 
 export default function EventDetailPage() {
@@ -300,17 +315,6 @@ export default function EventDetailPage() {
               </select>
             </div>
 
-            <div>
-              <label className="block mb-2 text-sm" style={{ color: "#9ec9b4" }}>スケジュール表示月</label>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full p-3 rounded"
-                style={inputStyle}
-              />
-            </div>
-
             {/* 参加者検索 */}
             <div>
               <h2 className="font-bold mb-3 tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
@@ -368,13 +372,27 @@ export default function EventDetailPage() {
           </div>
 
           {/* 右カラム：スケジュール表 */}
-          <div>
+          <div className="space-y-4">
+            {/* スケジュール表示月 */}
+            <div className="flex items-center gap-3 p-4 rounded-xl" style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}>
+              <span className="text-sm font-bold tracking-widest whitespace-nowrap" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
+                Schedule Month
+              </span>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="flex-1 p-2 rounded"
+                style={{ backgroundColor: "#0a1a1e", border: "1px solid #1e3d45", color: "#e8f5f0" }}
+              />
+            </div>
             {selectedUsers.length > 0 ? (
               <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1e3d45" }}>
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr style={{ backgroundColor: "#081519" }}>
-                      <th className="p-2 text-center" style={{ color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "40px" }}>日</th>
+                      <th className="p-2 text-center" style={{ color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "32px" }}>日</th>
+                      <th className="p-2 text-center" style={{ color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "28px" }}>曜</th>
                       <th className="p-2 text-center" style={{ color: "#4ecdc4", borderBottom: "1px solid #1e3d45", width: "40px" }}>判定</th>
                       {selectedUsers.map((u) => (
                         <th key={u.discord_id} className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #1e3d45" }}>
@@ -392,6 +410,9 @@ export default function EventDetailPage() {
                       return (
                         <tr key={day} style={{ backgroundColor: selected ? "#1e3d45" : "transparent" }}>
                           <td className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #163240" }}>{day}</td>
+                          <td className="p-2 text-center text-xs font-bold" style={{ color: getWeekdayColor(selectedMonth, day), borderBottom: "1px solid #163240" }}>
+                            {getWeekday(selectedMonth, day)}
+                          </td>
                           <td
                             onClick={() => handleDateSelect(day)}
                             className="p-2 text-center font-bold cursor-pointer"
