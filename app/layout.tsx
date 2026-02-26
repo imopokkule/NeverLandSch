@@ -9,6 +9,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         <Providers>
           <Header />
