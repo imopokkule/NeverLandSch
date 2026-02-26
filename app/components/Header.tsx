@@ -9,7 +9,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header style={{ backgroundColor: "#071510", borderBottom: "1px solid #1a3a2e" }}>
+    <header style={{ backgroundColor: "#0a1e10", borderBottom: "1px solid #2a4d3c" }}>
       <div className="max-w-6xl mx-auto flex justify-between items-center px-8 py-4">
 
         {/* ロゴ */}
@@ -30,7 +30,7 @@ export default function Header() {
                 key={label}
                 href={hrefs[i]}
                 className="tracking-widest hover:opacity-70 transition"
-                style={{ fontFamily: "'Cinzel', serif", color: "#7aad99" }}
+                style={{ fontFamily: "'Cinzel', serif", color: "#9ec9b4" }}
               >
                 {label}
               </Link>
@@ -78,7 +78,7 @@ export default function Header() {
       {menuOpen && (
         <div
           className="md:hidden flex flex-col gap-4 px-8 pb-6 text-sm"
-          style={{ borderTop: "1px solid #1a3a2e" }}
+          style={{ borderTop: "1px solid #2a4d3c" }}
         >
           {["HOME", "EVENTS", "CREATE", "SCHEDULE"].map((label, i) => {
             const hrefs = ["/", "/event", "/event/create", "/schedule"];
@@ -88,7 +88,7 @@ export default function Header() {
                 href={hrefs[i]}
                 onClick={() => setMenuOpen(false)}
                 className="tracking-widest hover:opacity-70 transition"
-                style={{ fontFamily: "'Cinzel', serif", color: "#7aad99" }}
+                style={{ fontFamily: "'Cinzel', serif", color: "#9ec9b4" }}
               >
                 {label}
               </Link>
@@ -105,7 +105,7 @@ export default function Header() {
                   style={{ border: "1px solid #4ecdc4" }}
                 />
               )}
-              <span style={{ color: "#d4e8e0", fontFamily: "'Cinzel', serif", fontSize: "0.8rem" }}>
+              <span style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif", fontSize: "0.8rem" }}>
                 {session.user?.name}
               </span>
               <button

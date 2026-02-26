@@ -55,7 +55,7 @@ export default function EventDetailPage() {
   const [search, setSearch] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
-  const inputStyle = { backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" };
+  const inputStyle = { backgroundColor: "#172d20", border: "1px solid #2a4d3c", color: "#e8f5f0" };
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -153,12 +153,49 @@ export default function EventDetailPage() {
       })
       .eq("id", event.id);
 
-    if (error) alert("更新失敗");
-    else alert("更新しました！");
+    if (error) { alert("更新失敗"); return; }
+
+    // Discord チャンネル更新（名前・カテゴリ移動）
+    if (event.discord_channel_id) {
+      await fetch("/api/discord/channel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update",
+          title: event.title,
+          status: event.status,
+          channelId: event.discord_channel_id,
+        }),
+      });
+    } else {
+      // チャンネルがまだ存在しない場合は新規作成
+      const res = await fetch("/api/discord/channel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", title: event.title, status: event.status }),
+      });
+      if (res.ok) {
+        const { channelId } = await res.json();
+        await supabase.from("events").update({ discord_channel_id: channelId }).eq("id", event.id);
+        setEvent({ ...event, discord_channel_id: channelId });
+      }
+    }
+
+    alert("更新しました！");
   };
 
   const deleteEvent = async () => {
     if (!event || !confirm("本当に削除しますか？")) return;
+
+    // Discord チャンネル削除
+    if (event.discord_channel_id) {
+      await fetch("/api/discord/channel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", channelId: event.discord_channel_id }),
+      });
+    }
+
     const { error } = await supabase.from("events").delete().eq("id", event.id);
     if (error) alert("削除失敗");
     else { alert("削除しました"); router.push("/event"); }
@@ -175,27 +212,27 @@ export default function EventDetailPage() {
   ).getDate();
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0b1a14", color: "#4ecdc4" }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0f2318", color: "#4ecdc4" }}>
       Loading...
     </div>
   );
 
   if (!event) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0b1a14", color: "#c0392b" }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0f2318", color: "#c0392b" }}>
       Not Found
     </div>
   );
 
   return (
-    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0b1a14", color: "#d4e8e0" }}>
+    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0f2318", color: "#e8f5f0" }}>
       <div className="max-w-6xl mx-auto space-y-8">
 
         {/* ページヘッダー */}
-        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1a3a2e" }}>
+        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#2a4d3c" }}>
           <h1 className="text-4xl font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
             Event Detail
           </h1>
-          <p style={{ color: "#7aad99" }} className="text-sm tracking-wide">
+          <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
             イベントの詳細編集・参加者の変更・日程の変更ができます。
           </p>
         </div>
@@ -204,7 +241,7 @@ export default function EventDetailPage() {
           {/* 左カラム */}
           <div className="space-y-4">
             <div>
-              <label className="block mb-1 text-sm" style={{ color: "#7aad99" }}>タイトル</label>
+              <label className="block mb-1 text-sm" style={{ color: "#9ec9b4" }}>タイトル</label>
               <input
                 value={event.title ?? ""}
                 onChange={(e) => setEvent({ ...event, title: e.target.value })}
@@ -214,7 +251,7 @@ export default function EventDetailPage() {
             </div>
 
             <div>
-              <label className="block mb-1 text-sm" style={{ color: "#7aad99" }}>日付</label>
+              <label className="block mb-1 text-sm" style={{ color: "#9ec9b4" }}>日付</label>
               <input
                 type="date"
                 value={event.event_date ?? ""}
@@ -225,7 +262,7 @@ export default function EventDetailPage() {
             </div>
 
             <div>
-              <label className="block mb-1 text-sm" style={{ color: "#7aad99" }}>時間</label>
+              <label className="block mb-1 text-sm" style={{ color: "#9ec9b4" }}>時間</label>
               <div className="flex gap-2">
                 <select
                   value={event.event_time?.split(":")[0] ?? "18"}
@@ -250,7 +287,7 @@ export default function EventDetailPage() {
             </div>
 
             <div>
-              <label className="block mb-1 text-sm" style={{ color: "#7aad99" }}>ステータス</label>
+              <label className="block mb-1 text-sm" style={{ color: "#9ec9b4" }}>ステータス</label>
               <select
                 value={event.status}
                 onChange={(e) => setEvent({ ...event, status: e.target.value })}
@@ -264,7 +301,7 @@ export default function EventDetailPage() {
             </div>
 
             <div>
-              <label className="block mb-2 text-sm" style={{ color: "#7aad99" }}>スケジュール表示月</label>
+              <label className="block mb-2 text-sm" style={{ color: "#9ec9b4" }}>スケジュール表示月</label>
               <input
                 type="month"
                 value={selectedMonth}
@@ -298,9 +335,9 @@ export default function EventDetailPage() {
                       onClick={() => toggleUser(u)}
                       className="px-4 py-2 rounded-lg text-sm transition"
                       style={{
-                        backgroundColor: isSelected ? "#4ecdc4" : "#112018",
-                        border: "1px solid " + (isSelected ? "#4ecdc4" : "#1a3a2e"),
-                        color: isSelected ? "#0b1a14" : "#d4e8e0",
+                        backgroundColor: isSelected ? "#4ecdc4" : "#172d20",
+                        border: "1px solid " + (isSelected ? "#4ecdc4" : "#2a4d3c"),
+                        color: isSelected ? "#0b1a14" : "#e8f5f0",
                         fontWeight: isSelected ? "700" : "400",
                       }}
                     >
@@ -323,7 +360,7 @@ export default function EventDetailPage() {
               <button
                 onClick={deleteEvent}
                 className="px-6 py-3 rounded-xl font-bold tracking-widest"
-                style={{ backgroundColor: "#6b1a1a", color: "#d4e8e0", border: "1px solid #c0392b" }}
+                style={{ backgroundColor: "#6b1a1a", color: "#e8f5f0", border: "1px solid #c0392b" }}
               >
                 Delete
               </button>
@@ -333,14 +370,14 @@ export default function EventDetailPage() {
           {/* 右カラム：スケジュール表 */}
           <div>
             {selectedUsers.length > 0 ? (
-              <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1a3a2e" }}>
+              <div className="overflow-auto rounded-xl" style={{ border: "1px solid #2a4d3c" }}>
                 <table className="w-full text-sm border-collapse">
                   <thead>
-                    <tr style={{ backgroundColor: "#071510" }}>
-                      <th className="p-2 text-center" style={{ color: "#7aad99", borderBottom: "1px solid #1a3a2e", width: "40px" }}>日</th>
-                      <th className="p-2 text-center" style={{ color: "#4ecdc4", borderBottom: "1px solid #1a3a2e", width: "40px" }}>判定</th>
+                    <tr style={{ backgroundColor: "#0a1e10" }}>
+                      <th className="p-2 text-center" style={{ color: "#9ec9b4", borderBottom: "1px solid #2a4d3c", width: "40px" }}>日</th>
+                      <th className="p-2 text-center" style={{ color: "#4ecdc4", borderBottom: "1px solid #2a4d3c", width: "40px" }}>判定</th>
                       {selectedUsers.map((u) => (
-                        <th key={u.discord_id} className="p-2 text-center text-xs" style={{ color: "#7aad99", borderBottom: "1px solid #1a3a2e" }}>
+                        <th key={u.discord_id} className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #2a4d3c" }}>
                           {u.user_name}
                         </th>
                       ))}
@@ -353,14 +390,14 @@ export default function EventDetailPage() {
                       const selected = event.event_date === `${selectedMonth}-${String(day).padStart(2, "0")}`;
 
                       return (
-                        <tr key={day} style={{ backgroundColor: selected ? "#1a3a2e" : "transparent" }}>
-                          <td className="p-2 text-center text-xs" style={{ color: "#7aad99", borderBottom: "1px solid #0f2a1e" }}>{day}</td>
+                        <tr key={day} style={{ backgroundColor: selected ? "#2a4d3c" : "transparent" }}>
+                          <td className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #1a3d2a" }}>{day}</td>
                           <td
                             onClick={() => handleDateSelect(day)}
                             className="p-2 text-center font-bold cursor-pointer"
                             style={{
-                              borderBottom: "1px solid #0f2a1e",
-                              color: overall === "◎" ? "#4ecdc4" : overall === "×" ? "#c0392b" : "#d4e8e0",
+                              borderBottom: "1px solid #1a3d2a",
+                              color: overall === "◎" ? "#4ecdc4" : overall === "×" ? "#c0392b" : "#e8f5f0",
                               outline: selected ? "2px solid #4ecdc4" : "none",
                             }}
                           >
@@ -372,7 +409,7 @@ export default function EventDetailPage() {
                               <td
                                 key={u.discord_id}
                                 className="p-2 text-center text-xs"
-                                style={{ backgroundColor: getCellBg(value), borderBottom: "1px solid #0f2a1e", color: "#fff" }}
+                                style={{ backgroundColor: getCellBg(value), borderBottom: "1px solid #1a3d2a", color: "#fff" }}
                               >
                                 {getCellLabel(value)}
                               </td>
@@ -387,7 +424,7 @@ export default function EventDetailPage() {
             ) : (
               <div
                 className="h-full flex items-center justify-center rounded-xl p-12 text-center"
-                style={{ border: "1px dashed #1a3a2e", color: "#7aad99" }}
+                style={{ border: "1px dashed #2a4d3c", color: "#9ec9b4" }}
               >
                 参加者を選択するとスケジュール表が表示されます
               </div>

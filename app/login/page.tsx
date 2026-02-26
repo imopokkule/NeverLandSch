@@ -6,13 +6,13 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center text-white gap-10"
-      style={{ backgroundColor: "#0b1a14" }}
+      style={{ backgroundColor: "#0f2318" }}
     >
       {/* タイトル */}
       <div className="text-center space-y-3">
         <p
           className="text-lg tracking-[0.4em] uppercase"
-          style={{ color: "#7aad99", fontFamily: "'Cinzel', serif" }}
+          style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}
         >
           Welcome to
         </p>
@@ -28,7 +28,7 @@ export default function LoginPage() {
         </h1>
         <h2
           className="text-2xl md:text-3xl tracking-[0.3em]"
-          style={{ fontFamily: "'Cinzel', serif", color: "#d4e8e0" }}
+          style={{ fontFamily: "'Cinzel', serif", color: "#e8f5f0" }}
         >
           Scheduler
         </h2>
@@ -43,7 +43,7 @@ export default function LoginPage() {
         }
         className="flex items-center gap-3 px-10 py-4 rounded-xl text-lg font-semibold transition"
         style={{
-          backgroundColor: "#1a3a2e",
+          backgroundColor: "#2a4d3c",
           border: "1px solid #4ecdc4",
           color: "#4ecdc4",
           fontFamily: "'Cinzel', serif",
@@ -51,10 +51,10 @@ export default function LoginPage() {
         }}
         onMouseEnter={e => {
           (e.currentTarget as HTMLElement).style.backgroundColor = "#4ecdc4";
-          (e.currentTarget as HTMLElement).style.color = "#0b1a14";
+          (e.currentTarget as HTMLElement).style.color = "#0f2318";
         }}
         onMouseLeave={e => {
-          (e.currentTarget as HTMLElement).style.backgroundColor = "#1a3a2e";
+          (e.currentTarget as HTMLElement).style.backgroundColor = "#2a4d3c";
           (e.currentTarget as HTMLElement).style.color = "#4ecdc4";
         }}
       >

@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/app/lib/supabase";
 import { useSession } from "next-auth/react";
 
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
 const OPT_COLORS: Record<string, string> = {
-  "null": "#1a3a2e",
+  "null": "#1e3d2a",
   "0": "#5c1a1a",
   "1": "#4a6c2a",
   "2": "#1a3a5c",
@@ -66,19 +68,25 @@ export default function SchedulePage() {
     { label: "全日", value: 3 },
   ];
 
+  const getWeekdayColor = (dow: number) => {
+    if (dow === 0) return "#e07070"; // 日曜
+    if (dow === 6) return "#7099e0"; // 土曜
+    return "#9ec9b4";
+  };
+
   return (
-    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0b1a14" }}>
+    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0f2318" }}>
       <div className="max-w-3xl mx-auto space-y-8">
 
         {/* ページヘッダー */}
-        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1a3a2e" }}>
+        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#2a4d3c" }}>
           <h1
             className="text-4xl font-bold tracking-widest"
             style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
           >
             Schedule
           </h1>
-          <p style={{ color: "#7aad99" }} className="text-sm tracking-wide">
+          <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
             各日程の参加可否を入力してください。選択すると自動で保存されます。
           </p>
         </div>
@@ -91,9 +99,9 @@ export default function SchedulePage() {
             onChange={(e) => { setMonth(e.target.value); setSaved(false); }}
             className="px-4 py-2 rounded"
             style={{
-              backgroundColor: "#112018",
-              border: "1px solid #1a3a2e",
-              color: "#d4e8e0",
+              backgroundColor: "#172d20",
+              border: "1px solid #2a4d3c",
+              color: "#e8f5f0",
             }}
           />
           {saved && (
@@ -109,7 +117,7 @@ export default function SchedulePage() {
               className="px-3 py-1 rounded-full"
               style={{
                 backgroundColor: OPT_ACTIVE_COLORS[String(opt.value)],
-                color: "#0b1a14",
+                color: "#0f2318",
                 fontWeight: "bold",
               }}
             >
@@ -123,18 +131,38 @@ export default function SchedulePage() {
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
             const status = availability[day] ?? null;
+            const dow = new Date(
+              Number(month.split("-")[0]),
+              Number(month.split("-")[1]) - 1,
+              day
+            ).getDay();
+            const weekdayLabel = WEEKDAYS[dow];
+            const weekdayColor = getWeekdayColor(dow);
+            const isSunOrSat = dow === 0 || dow === 6;
 
             return (
               <div
                 key={day}
-                className="flex items-center gap-2 p-3 rounded-lg"
-                style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e" }}
+                className="flex items-center gap-3 p-3 rounded-lg"
+                style={{
+                  backgroundColor: "#172d20",
+                  border: `1px solid ${isSunOrSat ? (dow === 0 ? "#4d2a2a" : "#2a2a4d") : "#2a4d3c"}`,
+                }}
               >
-                <div
-                  className="w-12 text-sm font-bold"
-                  style={{ color: "#7aad99", fontFamily: "'Cinzel', serif" }}
-                >
-                  {day}
+                {/* 日付 + 曜日 */}
+                <div className="flex items-baseline gap-1.5 w-16 shrink-0">
+                  <span
+                    className="text-sm font-bold"
+                    style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif" }}
+                  >
+                    {day}
+                  </span>
+                  <span
+                    className="text-xs font-bold"
+                    style={{ color: weekdayColor }}
+                  >
+                    {weekdayLabel}
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {OPTIONS.map((opt) => {
@@ -148,9 +176,9 @@ export default function SchedulePage() {
                           backgroundColor: isActive
                             ? OPT_ACTIVE_COLORS[String(opt.value)]
                             : OPT_COLORS[String(opt.value)],
-                          color: isActive ? "#0b1a14" : "#7aad99",
+                          color: isActive ? "#0f2318" : "#9ec9b4",
                           fontWeight: isActive ? "bold" : "normal",
-                          border: isActive ? "none" : "1px solid #2a4a3a",
+                          border: isActive ? "none" : "1px solid #2a4d3c",
                         }}
                       >
                         {opt.label}

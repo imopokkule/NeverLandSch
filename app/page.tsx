@@ -27,7 +27,7 @@ export default function HomePage() {
   return (
     <main
       className="min-h-screen flex items-center justify-center p-8"
-      style={{ backgroundColor: "#0b1a14" }}
+      style={{ backgroundColor: "#0f2318" }}
     >
       <div className="text-center space-y-12">
 
@@ -45,7 +45,7 @@ export default function HomePage() {
           </h1>
           <h2
             className="text-2xl md:text-3xl tracking-[0.3em]"
-            style={{ fontFamily: "'Cinzel', serif", color: "#d4e8e0" }}
+            style={{ fontFamily: "'Cinzel', serif", color: "#e8f5f0" }}
           >
             Scheduler
           </h2>
@@ -81,9 +81,9 @@ export default function HomePage() {
               <div
                 className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-4 py-2 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none hidden md:block"
                 style={{
-                  backgroundColor: "#112018",
+                  backgroundColor: "#172d20",
                   border: "1px solid #4ecdc4",
-                  color: "#d4e8e0",
+                  color: "#e8f5f0",
                   fontFamily: "Arial, sans-serif",
                 }}
               >
