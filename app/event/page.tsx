@@ -20,6 +20,13 @@ const STATUS_LABELS: Record<string, string> = {
   closed_murder: "〆済みマダミス",
 };
 
+const STATUS_COLORS: Record<string, string> = {
+  recruiting: "#4ecdc4",
+  confirmed: "#a8d8a8",
+  closed_trpg: "#7aad99",
+  closed_murder: "#4a8c7a",
+};
+
 export default function EventPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [filter, setFilter] = useState("all");
@@ -30,31 +37,41 @@ export default function EventPage() {
         .from("events")
         .select("*")
         .order("created_at", { ascending: false });
-
       setEvents(data || []);
     };
-
     fetchEvents();
   }, []);
 
-  const filtered =
-    filter === "all"
-      ? events
-      : events.filter((ev) => ev.status === filter);
+  const filtered = filter === "all" ? events : events.filter((ev) => ev.status === filter);
 
   return (
-    <main className="min-h-screen bg-[#2b2d31] text-white p-10">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0b1a14" }}>
+      <div className="max-w-5xl mx-auto space-y-8">
 
-        <h1 className="text-3xl font-bold">
-          イベント一覧
-        </h1>
+        {/* ページヘッダー */}
+        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1a3a2e" }}>
+          <h1
+            className="text-4xl font-bold tracking-widest"
+            style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
+          >
+            Events
+          </h1>
+          <p style={{ color: "#7aad99" }} className="text-sm tracking-wide">
+            開催予定・募集中のイベント一覧です。イベントをクリックすると詳細を確認できます。
+          </p>
+        </div>
 
         {/* フィルター */}
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="bg-[#1e1f22] px-4 py-2 rounded"
+          className="px-4 py-2 rounded text-sm"
+          style={{
+            backgroundColor: "#112018",
+            border: "1px solid #1a3a2e",
+            color: "#d4e8e0",
+            fontFamily: "'Cinzel', serif",
+          }}
         >
           <option value="all">すべて</option>
           <option value="recruiting">募集中</option>
@@ -64,44 +81,51 @@ export default function EventPage() {
         </select>
 
         {/* 一覧 */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filtered.map((ev) => (
             <Link
               key={ev.id}
               href={`/event/${ev.discord_channel_id}`}
-              className="block bg-[#1e1f22] p-6 rounded-xl hover:bg-[#313338] transition"
+              className="block p-5 rounded-xl transition"
+              style={{
+                backgroundColor: "#112018",
+                border: "1px solid #1a3a2e",
+              }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "#4ecdc4"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "#1a3a2e"}
             >
               <div className="flex justify-between items-center">
-
-                <div>
-                  <h2 className="text-xl font-semibold">
+                <div className="space-y-1">
+                  <h2
+                    className="text-lg font-semibold"
+                    style={{ color: "#d4e8e0", fontFamily: "'Cinzel', serif" }}
+                  >
                     {ev.title}
                   </h2>
-
-                  <p className="text-sm text-gray-400">
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      color: STATUS_COLORS[ev.status] || "#7aad99",
+                      border: `1px solid ${STATUS_COLORS[ev.status] || "#7aad99"}`,
+                    }}
+                  >
                     {STATUS_LABELS[ev.status]}
-                  </p>
-                </div>
-
-                {/* 作成者表示 */}
-                <div className="flex items-center gap-3">
-                  {ev.creator_image && (
-                    <img
-                      src={ev.creator_image}
-                      alt="creator"
-                      className="w-8 h-8 rounded-full"
-                    />
-                  )}
-                  <span className="text-sm text-gray-300">
-                    {ev.creator_name}
                   </span>
                 </div>
-
+                <div className="flex items-center gap-2">
+                  {ev.creator_image && (
+                    <img src={ev.creator_image} alt="creator" className="w-8 h-8 rounded-full" style={{ border: "1px solid #1a3a2e" }} />
+                  )}
+                  <span className="text-sm" style={{ color: "#7aad99" }}>{ev.creator_name}</span>
+                </div>
               </div>
             </Link>
           ))}
-        </div>
 
+          {filtered.length === 0 && (
+            <p className="text-center py-12" style={{ color: "#7aad99" }}>イベントがありません</p>
+          )}
+        </div>
       </div>
     </main>
   );

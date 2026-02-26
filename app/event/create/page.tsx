@@ -152,17 +152,29 @@ export default function EventCreatePage() {
   ).getDate();
 
   return (
-    <main className="min-h-screen bg-[#2b2d31] text-white p-10">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0b1a14", color: "#d4e8e0" }}>
+      <div className="max-w-6xl mx-auto space-y-8">
 
-        <h1 className="text-2xl font-bold">イベント作成</h1>
+        {/* ページヘッダー */}
+        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1a3a2e" }}>
+          <h1
+            className="text-4xl font-bold tracking-widest"
+            style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
+          >
+            Create Event
+          </h1>
+          <p style={{ color: "#7aad99" }} className="text-sm tracking-wide">
+            参加者のスケジュールを確認しながらイベントを作成できます。日程表のセルをクリックして開催日を選択してください。
+          </p>
+        </div>
 
         {/* タイトル */}
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="タイトル"
-          className="w-full bg-[#1e1f22] p-2 rounded"
+          className="w-full p-3 rounded"
+          style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
         />
 
         {/* 日付 */}
@@ -170,7 +182,8 @@ export default function EventCreatePage() {
           type="date"
           value={eventDate ?? ""}
           onChange={(e) => setEventDate(e.target.value)}
-          className="bg-[#1e1f22] p-2 rounded"
+          className="p-3 rounded"
+          style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
         />
 
         {/* 時間 */}
@@ -178,7 +191,8 @@ export default function EventCreatePage() {
           <select
             value={hour}
             onChange={(e) => setHour(e.target.value)}
-            className="bg-[#1e1f22] p-2 rounded"
+            className="p-3 rounded"
+            style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
           >
             {Array.from({ length: 24 }).map((_, h) => (
               <option key={h} value={h.toString().padStart(2, "0")}>
@@ -186,11 +200,11 @@ export default function EventCreatePage() {
               </option>
             ))}
           </select>
-
           <select
             value={minute}
             onChange={(e) => setMinute(e.target.value)}
-            className="bg-[#1e1f22] p-2 rounded"
+            className="p-3 rounded"
+            style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
           >
             <option value="00">00分</option>
             <option value="30">30分</option>
@@ -201,47 +215,67 @@ export default function EventCreatePage() {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="bg-[#1e1f22] p-2 rounded"
+          className="p-3 rounded"
+          style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
         >
           {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
 
         {/* 表示月 */}
         <div>
-          <label className="block mb-1">スケジュール表示月</label>
+          <label className="block mb-2 text-sm" style={{ color: "#7aad99" }}>スケジュール表示月</label>
           <input
             type="month"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-[#1e1f22] p-2 rounded"
+            className="p-3 rounded"
+            style={{ backgroundColor: "#112018", border: "1px solid #1a3a2e", color: "#d4e8e0" }}
           />
         </div>
 
         {/* 参加者 */}
         <div>
-          <h2 className="font-bold">参加者</h2>
-          {users.map((u) => (
-            <label key={u.discord_id} className="block">
-              <input
-                type="checkbox"
-                onChange={() => toggleUser(u)}
-              />{" "}
-              {u.user_name}
-            </label>
-          ))}
+          <h2
+            className="font-bold mb-3 tracking-widest"
+            style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
+          >
+            参加者
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            {users.map((u) => {
+              const isSelected = !!selectedUsers.find(x => x.discord_id === u.discord_id);
+              return (
+                <label
+                  key={u.discord_id}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition"
+                  style={{
+                    backgroundColor: isSelected ? "#4ecdc4" : "#112018",
+                    border: "1px solid #1a3a2e",
+                    color: isSelected ? "#0b1a14" : "#d4e8e0",
+                  }}
+                >
+                  <input type="checkbox" onChange={() => toggleUser(u)} className="hidden" />
+                  {u.user_name}
+                </label>
+              );
+            })}
+          </div>
         </div>
 
         {/* 作成ボタン */}
         <button
           onClick={createEvent}
           disabled={creating}
-          className="bg-[#5865F2] px-6 py-2 rounded"
+          className="px-8 py-3 rounded-xl font-bold tracking-widest transition"
+          style={{
+            backgroundColor: "#4ecdc4",
+            color: "#0b1a14",
+            fontFamily: "'Cinzel', serif",
+          }}
         >
-          作成
+          Create Event
         </button>
 
         {/* スケジュール表 */}

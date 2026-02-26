@@ -51,10 +51,10 @@ export default function Header() {
                 onClick={() => signOut()}
                 className="px-4 py-2 rounded-full text-sm tracking-widest transition"
                 style={{
-                  border: "1px solid #4ecdc4",
-                  color: "#4ecdc4",
+                  backgroundColor: "#4ecdc4",
+                  color: "#0b1a14",
                   fontFamily: "'Cinzel', serif",
-                  backgroundColor: "transparent",
+                  fontWeight: "700",
                 }}
               >
                 Logout
@@ -112,10 +112,10 @@ export default function Header() {
                 onClick={() => { signOut(); setMenuOpen(false); }}
                 className="px-4 py-2 rounded-full text-sm tracking-widest transition"
                 style={{
-                  border: "1px solid #4ecdc4",
-                  color: "#4ecdc4",
+                  backgroundColor: "#4ecdc4",
+                  color: "#0b1a14",
                   fontFamily: "'Cinzel', serif",
-                  backgroundColor: "transparent",
+                  fontWeight: "700",
                 }}
               >
                 Logout
