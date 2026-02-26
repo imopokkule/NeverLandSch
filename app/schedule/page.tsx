@@ -51,12 +51,15 @@ export default function SchedulePage() {
     const newAvailability = { ...availability, [day]: value };
     setAvailability(newAvailability);
     setSaved(false);
-    await supabase.from("schedules").upsert({
-      discord_id: session?.user?.id,
-      user_name: session?.user?.name,
-      month,
-      data: newAvailability,
-    });
+    await supabase.from("schedules").upsert(
+      {
+        discord_id: session?.user?.id,
+        user_name: session?.user?.name,
+        month,
+        data: newAvailability,
+      },
+      { onConflict: "discord_id,month" }
+    );
     setSaved(true);
   };
 
