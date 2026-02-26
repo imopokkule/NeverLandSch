@@ -129,7 +129,7 @@ export default function EventCreatePage() {
         event_date: eventDate,
         event_time: `${hour}:${minute}`,
         month: selectedMonth,
-        creator_id: session.user?.id,
+        creator_id: (session.user as any)?.id,
         creator_name: session.user?.name,
         creator_image: session.user?.image,
       });
