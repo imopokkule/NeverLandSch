@@ -35,10 +35,7 @@ if (
    Supabase
 =============================== */
 
-const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY
-);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 /* ===============================
    Discord Client
@@ -49,146 +46,33 @@ const client = new Client({
 });
 
 /* ===============================
-   カテゴリマップ
+   カテゴリ ↔ ステータス マップ
 =============================== */
 
-const CATEGORY_MAP: Record<string, string | undefined> = {
-  recruiting: CATEGORY_RECRUITING,
-  confirmed: CATEGORY_CONFIRMED,
-  closed_trpg: CATEGORY_CLOSED_TRPG,
-  closed_murder: CATEGORY_CLOSED_MURDER,
+// status → categoryId（DB→Discord 方向は Web App の API ルートが担当）
+const CATEGORY_MAP: Record<string, string> = {
+  recruiting:    CATEGORY_RECRUITING    ?? "",
+  confirmed:     CATEGORY_CONFIRMED     ?? "",
+  closed_trpg:   CATEGORY_CLOSED_TRPG   ?? "",
+  closed_murder: CATEGORY_CLOSED_MURDER ?? "",
 };
+
+// categoryId → status（Discord→DB 方向の逆引き）
+const REVERSE_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_MAP).filter(([, v]) => v).map(([k, v]) => [v, k])
+);
 
 /* ===============================
    Bot Ready
 =============================== */
 
-client.once("ready", async () => {
+client.once("ready", () => {
   console.log(`✅ Logged in as ${client.user?.tag}`);
-
-  const guild = await client.guilds.fetch(DISCORD_GUILD_ID);
-
-  console.log("🚀 Realtime listener started");
-
-  /* ===============================
-     INSERT → チャンネル作成
-  =============================== */
-
-  supabase
-    .channel("events-insert")
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "events" },
-      async (payload) => {
-        try {
-          const event = payload.new;
-
-          console.log("🆕 Event inserted:", event.title);
-
-          const categoryId = CATEGORY_MAP[event.status];
-          if (!categoryId) {
-            console.log("⚠ カテゴリ未設定");
-            return;
-          }
-
-          const channel = await guild.channels.create({
-            name: event.title,
-            type: ChannelType.GuildText,
-            parent: categoryId,
-          });
-
-          await supabase
-            .from("events")
-            .update({ discord_channel_id: channel.id })
-            .eq("id", event.id);
-
-          console.log("✅ Channel created:", channel.name);
-        } catch (err) {
-          console.error("❌ INSERT error:", err);
-        }
-      }
-    )
-    .subscribe();
-
-  /* ===============================
-     UPDATE → 名前変更＋カテゴリ移動
-  =============================== */
-
-  supabase
-    .channel("events-update")
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "events" },
-      async (payload) => {
-        try {
-          const event = payload.new;
-
-          if (!event.discord_channel_id) return;
-
-          const channel = await guild.channels.fetch(
-            event.discord_channel_id
-          );
-
-          if (!channel) return;
-          if (channel.type !== ChannelType.GuildText) return;
-
-          const textChannel = channel as TextChannel;
-
-          console.log("✏ Updating channel:", event.title);
-
-          // 名前変更
-          await textChannel.setName(event.title);
-
-          // カテゴリ移動
-          const categoryId = CATEGORY_MAP[event.status];
-          if (categoryId) {
-            await textChannel.edit({
-              parent: categoryId,
-            });
-          }
-
-          console.log("✅ Channel updated");
-        } catch (err) {
-          console.error("❌ UPDATE error:", err);
-        }
-      }
-    )
-    .subscribe();
-
-  /* ===============================
-     DELETE (DB側) → Discord削除
-  =============================== */
-
-  supabase
-    .channel("events-delete")
-    .on(
-      "postgres_changes",
-      { event: "DELETE", schema: "public", table: "events" },
-      async (payload) => {
-        try {
-          const event = payload.old;
-
-          if (!event.discord_channel_id) return;
-
-          const channel = await guild.channels.fetch(
-            event.discord_channel_id
-          );
-
-          if (!channel) return;
-
-          await channel.delete();
-
-          console.log("🗑 Channel deleted from Discord");
-        } catch (err) {
-          console.error("❌ DELETE error:", err);
-        }
-      }
-    )
-    .subscribe();
+  console.log("👂 Listening for Discord events (Discord → DB direction)");
 });
 
 /* ===============================
-   Discord削除 → DB削除
+   Discord チャンネル削除 → DB のイベント削除
 =============================== */
 
 client.on("channelDelete", async (channel) => {
@@ -197,14 +81,55 @@ client.on("channelDelete", async (channel) => {
 
     console.log("🗑 Discord channel deleted:", channel.id);
 
-    await supabase
+    const { error } = await supabase
       .from("events")
       .delete()
       .eq("discord_channel_id", channel.id);
 
-    console.log("✅ DB event deleted");
+    if (error) {
+      console.error("❌ DB delete error:", error);
+    } else {
+      console.log("✅ Event removed from DB");
+    }
   } catch (err) {
     console.error("❌ channelDelete error:", err);
+  }
+});
+
+/* ===============================
+   Discord カテゴリ移動 → DB のステータス更新
+=============================== */
+
+client.on("channelUpdate", async (oldChannel, newChannel) => {
+  try {
+    if (newChannel.type !== ChannelType.GuildText) return;
+
+    const oldText = oldChannel as Partial<TextChannel>;
+    const newText = newChannel as TextChannel;
+
+    // カテゴリが変わっていない場合はスキップ
+    if (oldText.parentId === newText.parentId) return;
+
+    const newStatus = REVERSE_MAP[newText.parentId ?? ""];
+    if (!newStatus) {
+      console.log("⚠ 管理外カテゴリへの移動（無視）:", newText.parentId);
+      return;
+    }
+
+    console.log(`📂 Channel moved: ${newChannel.id} → status: ${newStatus}`);
+
+    const { error } = await supabase
+      .from("events")
+      .update({ status: newStatus })
+      .eq("discord_channel_id", newChannel.id);
+
+    if (error) {
+      console.error("❌ DB status update error:", error);
+    } else {
+      console.log(`✅ Event status updated to "${newStatus}"`);
+    }
+  } catch (err) {
+    console.error("❌ channelUpdate error:", err);
   }
 });
 
