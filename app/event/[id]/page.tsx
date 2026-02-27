@@ -50,7 +50,6 @@ const LEGEND = [
 ];
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const getWeekday = (yearMonth: string, day: number) => {
   const [y, m] = yearMonth.split("-").map(Number);
@@ -397,11 +396,13 @@ export default function EventDetailPage() {
                 ‹
               </button>
               <div className="text-center">
-                <div className="text-xs tracking-[0.2em] mb-0.5" style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}>
+                <div className="text-xs tracking-[0.2em] mb-1" style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}>
                   Schedule Month
                 </div>
-                <div className="font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
-                  {MONTHS[Number(selectedMonth.slice(5, 7)) - 1]} {selectedMonth.slice(0, 4)}
+                <div style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4", lineHeight: 1 }}>
+                  <span style={{ fontSize: "1.7rem", fontWeight: "900", letterSpacing: "0.05em" }}>{selectedMonth.slice(0, 4)}</span>
+                  <span style={{ fontSize: "1.1rem", fontWeight: "400", margin: "0 0.4em", color: "#9ec9b4" }}>/</span>
+                  <span style={{ fontSize: "1.7rem", fontWeight: "900", letterSpacing: "0.05em" }}>{selectedMonth.slice(5, 7)}</span>
                 </div>
               </div>
               <button
@@ -422,15 +423,15 @@ export default function EventDetailPage() {
               ))}
             </div>
             {selectedUsers.length > 0 ? (
-              <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1e3d45" }}>
-                <table className="w-full text-sm border-collapse">
+              <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1e3d45", maxHeight: "520px" }}>
+                <table className="text-sm border-collapse" style={{ tableLayout: "fixed" }}>
                   <thead>
-                    <tr style={{ backgroundColor: "#081519" }}>
-                      <th className="p-2 text-center" style={{ color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "32px" }}>日</th>
-                      <th className="p-2 text-center" style={{ color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "28px" }}>曜</th>
-                      <th className="p-2 text-center" style={{ color: "#4ecdc4", borderBottom: "1px solid #1e3d45", width: "40px" }}>判定</th>
+                    <tr>
+                      <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#081519", color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "32px", minWidth: "32px" }}>日</th>
+                      <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#081519", color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "28px", minWidth: "28px" }}>曜</th>
+                      <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#081519", color: "#4ecdc4", borderBottom: "1px solid #1e3d45", width: "40px", minWidth: "40px" }}>判定</th>
                       {selectedUsers.map((u) => (
-                        <th key={u.discord_id} className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #1e3d45" }}>
+                        <th key={u.discord_id} className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#081519", color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "40px", minWidth: "40px", writingMode: "vertical-rl", textOrientation: "mixed", whiteSpace: "nowrap", fontSize: "0.7rem", paddingTop: "8px", paddingBottom: "8px" }}>
                           {u.user_name}
                         </th>
                       ))}

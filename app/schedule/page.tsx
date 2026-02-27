@@ -5,7 +5,6 @@ import { supabase } from "@/app/lib/supabase";
 import { useSession } from "next-auth/react";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const OPT_COLORS: Record<string, string> = {
   "null": "#0e2030",
@@ -123,8 +122,10 @@ export default function SchedulePage() {
               <div className="text-xs tracking-[0.2em] mb-0.5" style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}>
                 Schedule Month
               </div>
-              <div className="font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
-                {MONTHS[Number(month.slice(5, 7)) - 1]} {month.slice(0, 4)}
+              <div style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4", lineHeight: 1 }}>
+                <span style={{ fontSize: "1.7rem", fontWeight: "900", letterSpacing: "0.05em" }}>{month.slice(0, 4)}</span>
+                <span style={{ fontSize: "1.1rem", fontWeight: "400", margin: "0 0.4em", color: "#9ec9b4" }}>/</span>
+                <span style={{ fontSize: "1.7rem", fontWeight: "900", letterSpacing: "0.05em" }}>{month.slice(5, 7)}</span>
               </div>
             </div>
             <button

@@ -30,7 +30,7 @@ export default function Header() {
                 key={label}
                 href={hrefs[i]}
                 className="tracking-widest hover:opacity-70 transition"
-                style={{ fontFamily: "'Cinzel', serif", color: "#9ec9b4" }}
+                style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
               >
                 {label}
               </Link>
@@ -88,7 +88,7 @@ export default function Header() {
                 href={hrefs[i]}
                 onClick={() => setMenuOpen(false)}
                 className="tracking-widest hover:opacity-70 transition"
-                style={{ fontFamily: "'Cinzel', serif", color: "#9ec9b4" }}
+                style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
               >
                 {label}
               </Link>
