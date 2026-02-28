@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 
 type User = {
@@ -55,6 +56,7 @@ const getWeekdayColor = (yearMonth: string, day: number) => {
 
 export default function EventCreatePage() {
   const { data: session } = useSession();
+  const router = useRouter();
 
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("recruiting");
@@ -168,10 +170,7 @@ export default function EventCreatePage() {
 
       if (error) throw error;
 
-      alert("作成成功！");
-      setTitle("");
-      setEventDate(null);
-      setSelectedUsers([]);
+      router.push("/event");
     } catch (err) {
       console.error(err);
       alert("エラーが発生しました");
@@ -336,11 +335,11 @@ export default function EventCreatePage() {
                 <table className="text-sm border-collapse" style={{ tableLayout: "fixed" }}>
                   <thead>
                     <tr>
-                      <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#081519", color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "32px", minWidth: "32px" }}>日</th>
-                      <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#081519", color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "28px", minWidth: "28px" }}>曜</th>
-                      <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#081519", color: "#4ecdc4", borderBottom: "1px solid #1e3d45", width: "40px", minWidth: "40px" }}>判定</th>
+                      <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#9ec9b4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "32px", minWidth: "32px" }}>日</th>
+                      <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#9ec9b4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "28px", minWidth: "28px" }}>曜</th>
+                      <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#4ecdc4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "40px", minWidth: "40px" }}>判定</th>
                       {selectedUsers.map((u) => (
-                        <th key={u.discord_id} className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#081519", color: "#9ec9b4", borderBottom: "1px solid #1e3d45", width: "40px", minWidth: "40px", writingMode: "vertical-rl", textOrientation: "mixed", whiteSpace: "nowrap", fontSize: "0.7rem", paddingTop: "8px", paddingBottom: "8px" }}>
+                        <th key={u.discord_id} className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#9ec9b4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "40px", minWidth: "40px", writingMode: "vertical-rl", textOrientation: "mixed", whiteSpace: "nowrap", fontSize: "0.7rem", paddingTop: "8px", paddingBottom: "8px" }}>
                           {u.user_name}
                         </th>
                       ))}
