@@ -356,8 +356,8 @@ export default function EventCreatePage() {
                           key={day}
                           style={{ backgroundColor: selected ? "#1e3d45" : "transparent" }}
                         >
-                          <td className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #163240" }}>{day}</td>
-                          <td className="p-2 text-center text-xs font-bold" style={{ color: getWeekdayColor(selectedMonth, day), borderBottom: "1px solid #163240" }}>
+                          <td className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #163240", borderRight: "1px solid #1e3d45" }}>{day}</td>
+                          <td className="p-2 text-center text-xs font-bold" style={{ color: getWeekdayColor(selectedMonth, day), borderBottom: "1px solid #163240", borderRight: "1px solid #1e3d45" }}>
                             {getWeekday(selectedMonth, day)}
                           </td>
                           <td
@@ -365,6 +365,7 @@ export default function EventCreatePage() {
                             className="p-2 text-center font-bold cursor-pointer"
                             style={{
                               borderBottom: "1px solid #163240",
+                              borderRight: "1px solid #1e3d45",
                               color: overall === "◎" ? "#4ef0a0" : overall === "〇" ? "#e8d040" : overall === "△" ? "#508cf0" : overall === "×" ? "#f04848" : "#e8f5f0",
                               textShadow: overall ? `0 0 8px ${overall === "◎" ? "rgba(78,240,160,0.7)" : overall === "〇" ? "rgba(232,208,64,0.7)" : overall === "△" ? "rgba(80,140,240,0.7)" : "rgba(240,72,72,0.7)"}` : "none",
                               outline: selected ? "2px solid #4ecdc4" : "none",
@@ -378,7 +379,7 @@ export default function EventCreatePage() {
                               <td
                                 key={u.discord_id}
                                 className="p-2 text-center text-xs"
-                                style={{ ...getCellStyle(value), borderBottom: "1px solid #163240" }}
+                                style={{ ...getCellStyle(value), borderBottom: "1px solid #163240", borderRight: "1px solid #1e3d45" }}
                               >
                                 {getCellLabel(value)}
                               </td>
