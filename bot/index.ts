@@ -72,6 +72,41 @@ client.once("clientReady", (readyClient) => {
 });
 
 /* ===============================
+   Discord チャンネル作成 → DB にイベント追加
+=============================== */
+
+client.on("channelCreate", async (channel) => {
+  try {
+    if (channel.type !== ChannelType.GuildText) return;
+    if (channel.guildId !== DISCORD_GUILD_ID) return;
+
+    const textChannel = channel as TextChannel;
+    const status = REVERSE_MAP[textChannel.parentId ?? ""];
+
+    if (!status) {
+      console.log("⚠ 管理外カテゴリへの作成（無視）:", textChannel.parentId);
+      return;
+    }
+
+    console.log(`📢 Discord channel created: ${channel.id} (${textChannel.name}) → status: ${status}`);
+
+    const { error } = await supabase.from("events").insert({
+      title: textChannel.name,
+      status,
+      discord_channel_id: channel.id,
+    });
+
+    if (error) {
+      console.error("❌ DB insert error:", error);
+    } else {
+      console.log(`✅ Event added to DB: ${textChannel.name}`);
+    }
+  } catch (err) {
+    console.error("❌ channelCreate error:", err);
+  }
+});
+
+/* ===============================
    Discord チャンネル削除 → DB のイベント削除
 =============================== */
 

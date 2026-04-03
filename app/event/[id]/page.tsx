@@ -211,11 +211,16 @@ export default function EventDetailPage() {
 
     // Discord チャンネル削除
     if (event.discord_channel_id) {
-      await fetch("/api/discord/channel", {
+      const res = await fetch("/api/discord/channel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete", channelId: event.discord_channel_id }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Discord channel delete failed:", data);
+        if (!confirm(`Discordチャンネルの削除に失敗しました (${data.error ?? res.status})。\nDBのみ削除しますか？`)) return;
+      }
     }
 
     const { error } = await supabase.from("events").delete().eq("id", event.id);
