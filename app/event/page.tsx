@@ -32,14 +32,23 @@ export default function EventPage() {
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const load = async () => {
+      // 既存データを先に表示
       const { data } = await supabase
         .from("events")
         .select("*")
         .order("created_at", { ascending: false });
       setEvents(data || []);
+
+      // Discordチャンネルと同期してから再取得
+      await fetch("/api/discord/channel");
+      const { data: updated } = await supabase
+        .from("events")
+        .select("*")
+        .order("created_at", { ascending: false });
+      setEvents(updated || []);
     };
-    fetchEvents();
+    load();
   }, []);
 
   const filtered = filter === "all" ? events : events.filter((ev) => ev.status === filter);
