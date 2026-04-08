@@ -90,6 +90,17 @@ export default function EventDetailPage() {
       if (!error && data) {
         setEvent(data);
         if (data.month) setSelectedMonth(data.month);
+
+        // 参加者を即座にセット（スケジュールデータはfetchUsers完了後に更新される）
+        if (data.participants?.length > 0) {
+          setSelectedUsers(
+            data.participants.map((p: { discord_id: string; user_name: string }) => ({
+              discord_id: p.discord_id,
+              user_name: p.user_name,
+              data: {},
+            }))
+          );
+        }
       }
       setLoading(false);
     };
@@ -116,21 +127,13 @@ export default function EventDetailPage() {
       }));
 
       setAllUsers(merged);
+      // 選択済み参加者のスケジュールデータを最新月のものに更新
       setSelectedUsers(prev =>
         prev.map(su => ({ ...su, data: scheduleMap.get(su.discord_id) || {} }))
       );
     };
     fetchUsers();
   }, [selectedMonth]);
-
-  // イベントロード後に既存参加者をセット
-  useEffect(() => {
-    if (!event?.participants || allUsers.length === 0) return;
-    const existing = event.participants
-      .map(p => allUsers.find(u => u.discord_id === p.discord_id))
-      .filter(Boolean) as User[];
-    if (existing.length > 0) setSelectedUsers(existing);
-  }, [event, allUsers]);
 
   const toggleUser = (u: User) => {
     if (selectedUsers.find((x) => x.discord_id === u.discord_id)) {
