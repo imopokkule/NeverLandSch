@@ -127,9 +127,14 @@ export default function EventDetailPage() {
       }));
 
       setAllUsers(merged);
-      // 選択済み参加者のスケジュールデータを最新月のものに更新
+      // 選択済み参加者のスケジュールデータと名前を最新情報に更新
+      const mergedMap = new Map(merged.map(u => [u.discord_id, u]));
       setSelectedUsers(prev =>
-        prev.map(su => ({ ...su, data: scheduleMap.get(su.discord_id) || {} }))
+        prev.map(su => ({
+          ...su,
+          user_name: mergedMap.get(su.discord_id)?.user_name || su.user_name,
+          data: scheduleMap.get(su.discord_id) || {},
+        }))
       );
     };
     fetchUsers();

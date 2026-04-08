@@ -51,13 +51,17 @@ export default function MySessionsPage() {
     const userId = session.user.id;
 
     const fetchMyEvents = async () => {
-      const { data } = await supabase
-        .from("events")
-        .select("*")
-        .or(`creator_id.eq.${userId},participants.cs.[{"discord_id":"${userId}"}]`)
-        .order("event_date", { ascending: true });
+      const [{ data: created }, { data: joined }] = await Promise.all([
+        supabase.from("events").select("*").eq("creator_id", userId),
+        supabase.from("events").select("*").contains("participants", [{ discord_id: userId }]),
+      ]);
 
-      setEvents(data || []);
+      // 重複を除いてマージ・日付順に並べ替え
+      const all = [...(created || []), ...(joined || [])];
+      const unique = Array.from(new Map(all.map(e => [e.id, e])).values());
+      unique.sort((a, b) => (a.event_date ?? "").localeCompare(b.event_date ?? ""));
+
+      setEvents(unique);
       setLoading(false);
     };
 
