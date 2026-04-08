@@ -91,12 +91,25 @@ export default function EventDetailPage() {
         setEvent(data);
         if (data.month) setSelectedMonth(data.month);
 
-        // 参加者を即座にセット（スケジュールデータはfetchUsers完了後に更新される）
+        // 参加者を即座にセット
         if (data.participants?.length > 0) {
+          const discordIds = data.participants.map((p: { discord_id: string }) => p.discord_id);
+
+          // schedulesテーブルから最新のuser_nameを取得
+          const { data: scheduleUsers } = await supabase
+            .from("schedules")
+            .select("discord_id, user_name")
+            .in("discord_id", discordIds)
+            .not("user_name", "is", null);
+
+          const nameMap = new Map(
+            (scheduleUsers ?? []).map((u: { discord_id: string; user_name: string }) => [u.discord_id, u.user_name])
+          );
+
           setSelectedUsers(
             data.participants.map((p: { discord_id: string; user_name: string }) => ({
               discord_id: p.discord_id,
-              user_name: p.user_name,
+              user_name: nameMap.get(p.discord_id) ?? p.user_name ?? p.discord_id,
               data: {},
             }))
           );
