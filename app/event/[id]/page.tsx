@@ -109,7 +109,7 @@ export default function EventDetailPage() {
           setSelectedUsers(
             data.participants.map((p: { discord_id: string; user_name: string }) => ({
               discord_id: p.discord_id,
-              user_name: nameMap.get(p.discord_id) ?? p.user_name ?? p.discord_id,
+              user_name: nameMap.get(p.discord_id) || p.user_name || p.discord_id,
               data: {},
             }))
           );
@@ -145,7 +145,7 @@ export default function EventDetailPage() {
       setSelectedUsers(prev =>
         prev.map(su => ({
           ...su,
-          user_name: mergedMap.get(su.discord_id)?.user_name || su.user_name,
+          user_name: mergedMap.get(su.discord_id)?.user_name || su.user_name || su.discord_id,
           data: scheduleMap.get(su.discord_id) || {},
         }))
       );
@@ -483,7 +483,7 @@ export default function EventDetailPage() {
                       <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#4ecdc4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "40px", minWidth: "40px" }}>判定</th>
                       {selectedUsers.map((u) => (
                         <th key={u.discord_id} className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#9ec9b4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "40px", minWidth: "40px", writingMode: "vertical-rl", textOrientation: "mixed", whiteSpace: "nowrap", fontSize: "0.7rem", paddingTop: "8px", paddingBottom: "8px" }}>
-                          {u.user_name}
+                          {u.user_name || u.discord_id}
                         </th>
                       ))}
                     </tr>
