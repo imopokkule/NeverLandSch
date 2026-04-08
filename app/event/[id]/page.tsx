@@ -93,8 +93,12 @@ export default function EventDetailPage() {
 
         // 参加者を即座にセット
         if (data.participants?.length > 0) {
-          console.log("RAW participants:", JSON.stringify(data.participants));
-          const discordIds = data.participants.map((p: { discord_id: string }) => p.discord_id);
+          // 文字列で保存されている場合はパース
+          const participants = data.participants.map((p: unknown) =>
+            typeof p === "string" ? JSON.parse(p) : p
+          ) as { discord_id: string; user_name: string }[];
+
+          const discordIds = participants.map(p => p.discord_id);
 
           // schedulesテーブルから最新のuser_nameを取得
           const { data: scheduleUsers } = await supabase
@@ -108,7 +112,7 @@ export default function EventDetailPage() {
           );
 
           setSelectedUsers(
-            data.participants.map((p: { discord_id: string; user_name: string }) => ({
+            participants.map(p => ({
               discord_id: p.discord_id,
               user_name: nameMap.get(p.discord_id) || p.user_name || p.discord_id,
               data: {},
@@ -465,11 +469,6 @@ export default function EventDetailPage() {
                 ›
               </button>
             </div>
-            {/* デバッグ（確認後削除） */}
-            <pre style={{ color: "#ff0", fontSize: "0.6rem", wordBreak: "break-all", whiteSpace: "pre-wrap" }}>
-              {JSON.stringify(selectedUsers)}
-            </pre>
-
             {/* 凡例 */}
             <div className="flex flex-wrap gap-4 px-1 text-xs" style={{ color: "#9ec9b4" }}>
               {LEGEND.map(({ symbol, label, color }) => (
