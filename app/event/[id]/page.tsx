@@ -466,7 +466,7 @@ export default function EventDetailPage() {
             </div>
             {/* デバッグ（確認後削除） */}
             <pre style={{ color: "#ff0", fontSize: "0.6rem", wordBreak: "break-all", whiteSpace: "pre-wrap" }}>
-              {JSON.stringify(selectedUsers.map(u => ({ id: u.discord_id, name: u.user_name })))}
+              {JSON.stringify(selectedUsers)}
             </pre>
 
             {/* 凡例 */}
