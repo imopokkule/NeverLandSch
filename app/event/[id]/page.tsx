@@ -93,6 +93,7 @@ export default function EventDetailPage() {
 
         // 参加者を即座にセット
         if (data.participants?.length > 0) {
+          console.log("RAW participants:", JSON.stringify(data.participants));
           const discordIds = data.participants.map((p: { discord_id: string }) => p.discord_id);
 
           // schedulesテーブルから最新のuser_nameを取得
