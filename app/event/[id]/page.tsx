@@ -276,7 +276,7 @@ export default function EventDetailPage() {
             </h1>
             {event.discord_channel_id && (
               <a
-                href={`https://discord.com/channels/${process.env.NEXT_PUBLIC_DISCORD_GUILD_ID}/${event.discord_channel_id}`}
+                href={`https://discord.com/channels/${process.env.NEXT_PUBLIC_DISCORD_GUILD_ID ?? "1414904203813457920"}/${event.discord_channel_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold tracking-widest transition hover:opacity-80"
