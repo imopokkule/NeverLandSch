@@ -464,6 +464,11 @@ export default function EventDetailPage() {
                 ›
               </button>
             </div>
+            {/* デバッグ（確認後削除） */}
+            <pre style={{ color: "#ff0", fontSize: "0.6rem", wordBreak: "break-all", whiteSpace: "pre-wrap" }}>
+              {JSON.stringify(selectedUsers.map(u => ({ id: u.discord_id, name: u.user_name })))}
+            </pre>
+
             {/* 凡例 */}
             <div className="flex flex-wrap gap-4 px-1 text-xs" style={{ color: "#9ec9b4" }}>
               {LEGEND.map(({ symbol, label, color }) => (
