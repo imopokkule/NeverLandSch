@@ -99,23 +99,34 @@ export default function EventDetailPage() {
           ) as { discord_id: string; user_name: string }[];
 
           const discordIds = participants.map(p => p.discord_id);
+          const eventMonth = data.month || new Date().toISOString().slice(0, 7);
 
-          // schedulesテーブルから最新のuser_nameを取得
-          const { data: scheduleUsers } = await supabase
-            .from("schedules")
-            .select("discord_id, user_name")
-            .in("discord_id", discordIds)
-            .not("user_name", "is", null);
+          // 名前とスケジュールデータを同時取得
+          const [{ data: scheduleUsers }, { data: scheduleData }] = await Promise.all([
+            supabase
+              .from("schedules")
+              .select("discord_id, user_name")
+              .in("discord_id", discordIds)
+              .not("user_name", "is", null),
+            supabase
+              .from("schedules")
+              .select("discord_id, data")
+              .in("discord_id", discordIds)
+              .eq("month", eventMonth),
+          ]);
 
           const nameMap = new Map(
             (scheduleUsers ?? []).map((u: { discord_id: string; user_name: string }) => [u.discord_id, u.user_name])
+          );
+          const dataMap = new Map(
+            (scheduleData ?? []).map((s: { discord_id: string; data: Record<string, number> }) => [s.discord_id, s.data])
           );
 
           setSelectedUsers(
             participants.map(p => ({
               discord_id: p.discord_id,
               user_name: nameMap.get(p.discord_id) || p.user_name || p.discord_id,
-              data: {},
+              data: dataMap.get(p.discord_id) || {},
             }))
           );
         }
