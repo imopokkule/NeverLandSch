@@ -275,15 +275,27 @@ export default function EventDetailPage() {
               Session Detail
             </h1>
             {event.discord_channel_id && (
-              <a
-                href={`https://discord.com/channels/${process.env.NEXT_PUBLIC_DISCORD_GUILD_ID ?? "1414904203813457920"}/${event.discord_channel_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => {
+                  const guildId = process.env.NEXT_PUBLIC_DISCORD_GUILD_ID ?? "1414904203813457920";
+                  const appUrl = `discord://discord.com/channels/${guildId}/${event.discord_channel_id}`;
+                  const webUrl = `https://discord.com/channels/${guildId}/${event.discord_channel_id}`;
+
+                  const fallback = setTimeout(() => {
+                    window.open(webUrl, "_blank");
+                  }, 1500);
+
+                  document.addEventListener("visibilitychange", () => {
+                    if (document.hidden) clearTimeout(fallback);
+                  }, { once: true });
+
+                  window.location.href = appUrl;
+                }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold tracking-widest transition hover:opacity-80"
                 style={{ backgroundColor: "#5865F2", color: "#fff", fontFamily: "'Cinzel', serif" }}
               >
                 Discord
-              </a>
+              </button>
             )}
           </div>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
