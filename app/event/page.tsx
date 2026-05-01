@@ -13,23 +13,32 @@ type Event = {
   creator_image: string | null;
 };
 
-const STATUS_LABELS: Record<string, string> = {
+const FIXED_STATUS_LABELS: Record<string, string> = {
   recruiting: "募集中",
   confirmed: "立卓済み",
   closed_trpg: "〆済みTRPG",
   closed_murder: "〆済みマダミス",
 };
 
-const STATUS_COLORS: Record<string, string> = {
+const FIXED_STATUS_COLORS: Record<string, string> = {
   recruiting: "#4ecdc4",
   confirmed: "#a8d8a8",
   closed_trpg: "#9ec9b4",
   closed_murder: "#4a8c7a",
 };
 
+function getStatusLabel(status: string): string {
+  return FIXED_STATUS_LABELS[status] ?? status;
+}
+
+function getStatusColor(status: string): string {
+  return FIXED_STATUS_COLORS[status] ?? "#a8d8a8";
+}
+
 export default function EventPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [filter, setFilter] = useState("all");
+  const [statusOptions, setStatusOptions] = useState<string[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -38,7 +47,9 @@ export default function EventPage() {
         .from("events")
         .select("*")
         .order("created_at", { ascending: false });
-      setEvents(data || []);
+      const evList = data || [];
+      setEvents(evList);
+      buildOptions(evList);
 
       // Discordチャンネルと同期してから再取得
       await fetch("/api/discord/channel");
@@ -46,10 +57,25 @@ export default function EventPage() {
         .from("events")
         .select("*")
         .order("created_at", { ascending: false });
-      setEvents(updated || []);
+      const updatedList = updated || [];
+      setEvents(updatedList);
+      buildOptions(updatedList);
     };
     load();
   }, []);
+
+  function buildOptions(evList: Event[]) {
+    // 固定ステータス順 + 月別カテゴリをアルファベット/月順に追加
+    const fixed = ["recruiting", "confirmed", "closed_trpg", "closed_murder"];
+    const monthly = Array.from(
+      new Set(
+        evList
+          .map((e) => e.status)
+          .filter((s) => !fixed.includes(s) && s)
+      )
+    ).sort();
+    setStatusOptions([...fixed.filter((s) => evList.some((e) => e.status === s)), ...monthly]);
+  }
 
   const filtered = filter === "all" ? events : events.filter((ev) => ev.status === filter);
 
@@ -83,10 +109,9 @@ export default function EventPage() {
           }}
         >
           <option value="all">すべて</option>
-          <option value="recruiting">募集中</option>
-          <option value="confirmed">立卓済み</option>
-          <option value="closed_trpg">〆済みTRPG</option>
-          <option value="closed_murder">〆済みマダミス</option>
+          {statusOptions.map((s) => (
+            <option key={s} value={s}>{getStatusLabel(s)}</option>
+          ))}
         </select>
 
         {/* 一覧 */}
@@ -114,11 +139,11 @@ export default function EventPage() {
                   <span
                     className="text-xs px-2 py-0.5 rounded-full"
                     style={{
-                      color: STATUS_COLORS[ev.status] || "#9ec9b4",
-                      border: `1px solid ${STATUS_COLORS[ev.status] || "#9ec9b4"}`,
+                      color: getStatusColor(ev.status),
+                      border: `1px solid ${getStatusColor(ev.status)}`,
                     }}
                   >
-                    {STATUS_LABELS[ev.status]}
+                    {getStatusLabel(ev.status)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

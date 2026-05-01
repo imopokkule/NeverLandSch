@@ -41,7 +41,7 @@ export async function GET() {
     const dynamicReverseMap: Record<string, string> = { ...REVERSE_MAP };
     for (const c of channels) {
       if (c.type === 4 && MONTHLY_PATTERN.test(c.name)) {
-        dynamicReverseMap[c.id] = "confirmed";
+        dynamicReverseMap[c.id] = c.name; // カテゴリ名をそのままstatusとして保存
       }
     }
 

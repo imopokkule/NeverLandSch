@@ -18,19 +18,22 @@ type Event = {
   participants: { discord_id: string; user_name: string }[] | null;
 };
 
-const STATUS_LABELS: Record<string, string> = {
+const FIXED_STATUS_LABELS: Record<string, string> = {
   recruiting: "募集中",
   confirmed: "立卓済み",
   closed_trpg: "〆済みTRPG",
   closed_murder: "〆済みマダミス",
 };
 
-const STATUS_COLORS: Record<string, string> = {
+const FIXED_STATUS_COLORS: Record<string, string> = {
   recruiting: "#4ecdc4",
   confirmed: "#a8d8a8",
   closed_trpg: "#9ec9b4",
   closed_murder: "#4a8c7a",
 };
+
+const getStatusLabel = (s: string) => FIXED_STATUS_LABELS[s] ?? s;
+const getStatusColor = (s: string) => FIXED_STATUS_COLORS[s] ?? "#a8d8a8";
 
 type FilterType = "all" | "joined" | "created";
 
@@ -145,11 +148,11 @@ export default function MySessionsPage() {
                       <span
                         className="text-xs px-2 py-0.5 rounded-full"
                         style={{
-                          color: STATUS_COLORS[ev.status] || "#9ec9b4",
-                          border: `1px solid ${STATUS_COLORS[ev.status] || "#9ec9b4"}`,
+                          color: getStatusColor(ev.status),
+                          border: `1px solid ${getStatusColor(ev.status)}`,
                         }}
                       >
-                        {STATUS_LABELS[ev.status]}
+                        {getStatusLabel(ev.status)}
                       </span>
                       {ev.event_date && (
                         <span className="text-xs" style={{ color: "#9ec9b4" }}>
