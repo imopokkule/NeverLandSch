@@ -54,7 +54,7 @@ export async function GET() {
       return NextResponse.json({ synced: 0, total: 0 });
     }
 
-    // Supabaseで既存のdiscord_channel_idを取得
+    // Supabaseで既存のdiscord_channel_idとstatusを取得
     const supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -62,13 +62,15 @@ export async function GET() {
 
     const { data: existing } = await supabase
       .from("events")
-      .select("discord_channel_id");
+      .select("discord_channel_id, status");
 
-    const existingIds = new Set((existing ?? []).map((e: { discord_channel_id: string }) => e.discord_channel_id));
+    const existingMap = new Map(
+      (existing ?? []).map((e: { discord_channel_id: string; status: string }) => [e.discord_channel_id, e.status])
+    );
 
-    // 未登録チャンネルのみ挿入
+    // 未登録チャンネルを挿入
     const toInsert = managed
-      .filter((c) => !existingIds.has(c.id))
+      .filter((c) => !existingMap.has(c.id))
       .map((c) => ({
         title: c.name,
         status: dynamicReverseMap[c.parent_id!],
@@ -83,7 +85,20 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ synced: toInsert.length, total: managed.length });
+    // 既存レコードでstatusが変わっているものを更新
+    const toUpdate = managed.filter((c) => {
+      const currentStatus = existingMap.get(c.id);
+      return currentStatus !== undefined && currentStatus !== dynamicReverseMap[c.parent_id!];
+    });
+
+    for (const c of toUpdate) {
+      await supabase
+        .from("events")
+        .update({ status: dynamicReverseMap[c.parent_id!] })
+        .eq("discord_channel_id", c.id);
+    }
+
+    return NextResponse.json({ synced: toInsert.length, updated: toUpdate.length, total: managed.length });
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
