@@ -49,7 +49,6 @@ const client = new Client({
    カテゴリ ↔ ステータス マップ
 =============================== */
 
-// status → categoryId（DB→Discord 方向は Web App の API ルートが担当）
 const CATEGORY_MAP: Record<string, string> = {
   recruiting:    CATEGORY_RECRUITING    ?? "",
   confirmed:     CATEGORY_CONFIRMED     ?? "",
@@ -57,10 +56,36 @@ const CATEGORY_MAP: Record<string, string> = {
   closed_murder: CATEGORY_CLOSED_MURDER ?? "",
 };
 
-// categoryId → status（Discord→DB 方向の逆引き）
+// categoryId → status（固定カテゴリの逆引き）
 const REVERSE_MAP: Record<string, string> = Object.fromEntries(
   Object.entries(CATEGORY_MAP).filter(([, v]) => v).map(([k, v]) => [v, k])
 );
+
+// 月別カテゴリのパターン（例: 立卓済み〈5月〉）
+const MONTHLY_CONFIRMED_PATTERN = /立卓済み[〈<].+月[〉>]/;
+
+/**
+ * カテゴリIDからステータスを解決する
+ * 固定カテゴリ → 逆引きマップ
+ * 月別カテゴリ → 名前パターンでマッチ
+ */
+function resolveStatus(parentId: string | null | undefined): string | null {
+  if (!parentId) return null;
+
+  // 固定カテゴリの逆引き
+  if (REVERSE_MAP[parentId]) return REVERSE_MAP[parentId];
+
+  // 月別カテゴリ（「立卓済み〈X月〉」）をキャッシュから名前で判定
+  const category = client.channels.cache.get(parentId);
+  if (category && "name" in category && typeof category.name === "string") {
+    if (MONTHLY_CONFIRMED_PATTERN.test(category.name)) {
+      console.log(`📅 月別カテゴリ検出: ${category.name} → confirmed`);
+      return "confirmed";
+    }
+  }
+
+  return null;
+}
 
 /* ===============================
    Bot Ready
@@ -81,7 +106,7 @@ client.on("channelCreate", async (channel) => {
     if (channel.guildId !== DISCORD_GUILD_ID) return;
 
     const textChannel = channel as TextChannel;
-    const status = REVERSE_MAP[textChannel.parentId ?? ""];
+    const status = resolveStatus(textChannel.parentId);
 
     if (!status) {
       console.log("⚠ 管理外カテゴリへの作成（無視）:", textChannel.parentId);
@@ -142,10 +167,9 @@ client.on("channelUpdate", async (oldChannel, newChannel) => {
     const oldText = oldChannel as Partial<TextChannel>;
     const newText = newChannel as TextChannel;
 
-    // カテゴリが変わっていない場合はスキップ
     if (oldText.parentId === newText.parentId) return;
 
-    const newStatus = REVERSE_MAP[newText.parentId ?? ""];
+    const newStatus = resolveStatus(newText.parentId);
     if (!newStatus) {
       console.log("⚠ 管理外カテゴリへの移動（無視）:", newText.parentId);
       return;

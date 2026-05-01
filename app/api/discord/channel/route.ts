@@ -36,9 +36,18 @@ export async function GET() {
 
     const channels: { id: string; type: number; name: string; parent_id: string | null }[] = await res.json();
 
+    // 月別カテゴリ（立卓済み〈X月〉）を動的に検出して逆引きマップに追加
+    const MONTHLY_PATTERN = /立卓済み[〈<].+月[〉>]/;
+    const dynamicReverseMap: Record<string, string> = { ...REVERSE_MAP };
+    for (const c of channels) {
+      if (c.type === 4 && MONTHLY_PATTERN.test(c.name)) {
+        dynamicReverseMap[c.id] = "confirmed";
+      }
+    }
+
     // 管理対象カテゴリ内のテキストチャンネルのみ抽出
     const managed = channels.filter(
-      (c) => c.type === 0 && c.parent_id && REVERSE_MAP[c.parent_id]
+      (c) => c.type === 0 && c.parent_id && dynamicReverseMap[c.parent_id]
     );
 
     if (managed.length === 0) {
@@ -62,7 +71,7 @@ export async function GET() {
       .filter((c) => !existingIds.has(c.id))
       .map((c) => ({
         title: c.name,
-        status: REVERSE_MAP[c.parent_id!],
+        status: dynamicReverseMap[c.parent_id!],
         discord_channel_id: c.id,
       }));
 
