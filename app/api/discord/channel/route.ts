@@ -54,6 +54,9 @@ export async function GET() {
       return NextResponse.json({ synced: 0, total: 0 });
     }
 
+    // Discord全チャンネルのマップ（channel_id → channel）
+    const allChannelMap = new Map(channels.map((c) => [c.id, c]));
+
     // Supabaseで既存のdiscord_channel_idとstatusを取得
     const supabase = createClient(
       process.env.SUPABASE_URL!,
@@ -85,20 +88,23 @@ export async function GET() {
       }
     }
 
-    // 既存レコードでstatusが変わっているものを更新
-    const toUpdate = managed.filter((c) => {
-      const currentStatus = existingMap.get(c.id);
-      return currentStatus !== undefined && currentStatus !== dynamicReverseMap[c.parent_id!];
-    });
-
-    for (const c of toUpdate) {
-      await supabase
-        .from("events")
-        .update({ status: dynamicReverseMap[c.parent_id!] })
-        .eq("discord_channel_id", c.id);
+    // 全DBレコードをDiscord上の現在のカテゴリと照合してstatusを更新
+    // （削除されたカテゴリから移動されたチャンネルも含めて対応）
+    let updatedCount = 0;
+    for (const [channelId, currentStatus] of existingMap) {
+      const ch = allChannelMap.get(channelId);
+      if (!ch || !ch.parent_id) continue;
+      const newStatus = dynamicReverseMap[ch.parent_id];
+      if (newStatus && newStatus !== currentStatus) {
+        await supabase
+          .from("events")
+          .update({ status: newStatus })
+          .eq("discord_channel_id", channelId);
+        updatedCount++;
+      }
     }
 
-    return NextResponse.json({ synced: toInsert.length, updated: toUpdate.length, total: managed.length });
+    return NextResponse.json({ synced: toInsert.length, updated: updatedCount, total: managed.length });
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
