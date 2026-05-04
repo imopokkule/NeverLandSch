@@ -104,7 +104,17 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ synced: toInsert.length, updated: updatedCount, total: managed.length });
+    // Discordに存在しないチャンネルのイベントをDBから削除
+    const discordChannelIds = new Set(channels.map((c) => c.id));
+    const toDelete = (existing ?? [])
+      .map((e: { discord_channel_id: string; status: string }) => e.discord_channel_id)
+      .filter((id: string) => !discordChannelIds.has(id));
+
+    if (toDelete.length > 0) {
+      await supabase.from("events").delete().in("discord_channel_id", toDelete);
+    }
+
+    return NextResponse.json({ synced: toInsert.length, updated: updatedCount, deleted: toDelete.length, total: managed.length });
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
