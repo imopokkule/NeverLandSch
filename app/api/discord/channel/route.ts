@@ -75,21 +75,30 @@ async function fetchMemberMapping(token: string, guildId: string): Promise<Map<s
     ...memberMsg.embeds.map((e) => e.description ?? ""),
   ].join("\n");
 
-  // <@userid> → サイト名 パターン（IDあり）
-  const mentionPattern = /<@(\d+)>\s*[→\->]\s*(.+)/g;
-  let match;
-  while ((match = mentionPattern.exec(allText)) !== null) {
-    mapping.set(match[2].trim().toLowerCase(), match[1]);
-  }
-
-  // @表示名 → サイト名 パターン（IDなし → メンバー検索で補完）
-  const namePattern = /^@([^<→\n]+?)\s*[→\->]\s*(.+)$/gm;
   const nameEntries: Array<{ displayName: string; siteName: string }> = [];
-  while ((match = namePattern.exec(allText)) !== null) {
-    const displayName = match[1].trim();
-    const siteName = match[2].trim();
-    if (!mapping.has(siteName.toLowerCase())) {
-      nameEntries.push({ displayName, siteName });
+
+  for (const line of allText.split("\n")) {
+    const arrowIdx = line.indexOf("→");
+    if (arrowIdx === -1) continue;
+
+    const left = line.slice(0, arrowIdx).trim();
+    const siteName = line.slice(arrowIdx + 1).trim();
+    if (!siteName || !left) continue;
+
+    // <@userid> 形式 → IDを直接使用
+    const idMatch = left.match(/<@(\d{10,})/);
+    if (idMatch) {
+      mapping.set(siteName.toLowerCase(), idMatch[1]);
+      continue;
+    }
+
+    // @表示名 形式（複数@の場合は最後のセグメントをニックネームとして使用）
+    if (left.includes("@")) {
+      const parts = left.split("@").map((s) => s.trim()).filter(Boolean);
+      const displayName = parts[parts.length - 1];
+      if (displayName && displayName !== "不明なユーザー" && !mapping.has(siteName.toLowerCase())) {
+        nameEntries.push({ displayName, siteName });
+      }
     }
   }
 
