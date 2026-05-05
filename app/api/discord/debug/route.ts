@@ -14,6 +14,27 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const channelId = searchParams.get("channel");
+  const memberQuery = searchParams.get("member");
+
+  if (memberQuery) {
+    const res = await fetch(
+      `${DISCORD_API}/guilds/${guildId}/members/search?query=${encodeURIComponent(memberQuery)}&limit=10`,
+      { headers: { Authorization: `Bot ${token}` } }
+    );
+    const body = await res.json();
+    return NextResponse.json({
+      status: res.status,
+      query: memberQuery,
+      results: Array.isArray(body)
+        ? body.map((m: AnyMsg) => ({
+            id: m.user?.id,
+            username: m.user?.username,
+            global_name: m.user?.global_name,
+            nick: m.nick,
+          }))
+        : body,
+    });
+  }
 
   if (channelId) {
     const res = await fetch(
