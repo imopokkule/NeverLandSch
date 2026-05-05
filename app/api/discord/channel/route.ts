@@ -26,8 +26,28 @@ type DiscordMessage = {
   }>;
 };
 
+// Discord表示名からユーザーIDを検索
+async function searchMemberId(token: string, guildId: string, displayName: string): Promise<string | null> {
+  const res = await fetch(
+    `${DISCORD_API}/guilds/${guildId}/members/search?query=${encodeURIComponent(displayName)}&limit=10`,
+    { headers: { Authorization: `Bot ${token}` } }
+  );
+  if (!res.ok) return null;
+
+  const members: Array<{ user: { id: string; username: string; global_name?: string }; nick: string | null }> = await res.json();
+  const lower = displayName.toLowerCase();
+
+  const exact = members.find(
+    (m) =>
+      (m.nick ?? "").toLowerCase() === lower ||
+      (m.user.global_name ?? "").toLowerCase() === lower ||
+      m.user.username.toLowerCase() === lower
+  );
+  return exact?.user.id ?? null;
+}
+
 // メンバー一覧から サイト名(lowercase) → Discord ID マッピングを取得
-async function fetchMemberMapping(token: string): Promise<Map<string, string>> {
+async function fetchMemberMapping(token: string, guildId: string): Promise<Map<string, string>> {
   const mapping = new Map<string, string>();
 
   const res = await fetch(
@@ -38,24 +58,45 @@ async function fetchMemberMapping(token: string): Promise<Map<string, string>> {
 
   const messages: DiscordMessage[] = await res.json();
 
+  // メンバー一覧が含まれるメッセージを探す（投稿者問わず）
   const memberMsg = messages.find(
     (m) =>
-      m.author.id === TRPG_BOT_ID &&
-      m.embeds.some(
-        (e) =>
-          (e.title ?? "").includes("メンバー一覧") ||
-          (e.description ?? "").includes("紐付け")
-      )
+      m.content.includes("→") &&
+      (m.content.includes("紐付け") || m.content.includes("メンバー") ||
+       m.embeds.some((e) =>
+         (e.title ?? "").includes("メンバー一覧") ||
+         (e.description ?? "").includes("紐付け")
+       ))
   );
   if (!memberMsg) return mapping;
 
-  const allText = memberMsg.embeds.map((e) => e.description ?? "").join("\n");
+  const allText = [
+    memberMsg.content,
+    ...memberMsg.embeds.map((e) => e.description ?? ""),
+  ].join("\n");
+
+  // <@userid> → サイト名 パターン（IDあり）
   const mentionPattern = /<@(\d+)>\s*[→\->]\s*(.+)/g;
   let match;
   while ((match = mentionPattern.exec(allText)) !== null) {
-    const discordId = match[1];
+    mapping.set(match[2].trim().toLowerCase(), match[1]);
+  }
+
+  // @表示名 → サイト名 パターン（IDなし → メンバー検索で補完）
+  const namePattern = /^@([^<→\n]+?)\s*[→\->]\s*(.+)$/gm;
+  const nameEntries: Array<{ displayName: string; siteName: string }> = [];
+  while ((match = namePattern.exec(allText)) !== null) {
+    const displayName = match[1].trim();
     const siteName = match[2].trim();
-    mapping.set(siteName.toLowerCase(), discordId);
+    if (!mapping.has(siteName.toLowerCase())) {
+      nameEntries.push({ displayName, siteName });
+    }
+  }
+
+  // メンバー検索でIDを補完
+  for (const entry of nameEntries) {
+    const id = await searchMemberId(token, guildId, entry.displayName);
+    if (id) mapping.set(entry.siteName.toLowerCase(), id);
   }
 
   return mapping;
@@ -206,7 +247,7 @@ export async function GET() {
     }
 
     // TRPGcalenderのGM/PL情報を取得（gm_idが未設定のセッションのみ）
-    const memberMapping = await fetchMemberMapping(token);
+    const memberMapping = await fetchMemberMapping(token, guildId);
     let participantCount = 0;
 
     if (memberMapping.size > 0) {
