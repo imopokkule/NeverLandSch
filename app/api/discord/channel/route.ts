@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const DISCORD_API = "https://discord.com/api/v10";
 const TRPG_BOT_ID = process.env.TRPG_CALENDER_BOT_ID ?? "1473385891836985498";
-const MEMBER_LIST_CHANNEL_ID = process.env.MEMBER_LIST_CHANNEL_ID ?? "1486015924786958";
+const MEMBER_LIST_CHANNEL_ID = process.env.MEMBER_LIST_CHANNEL_ID ?? "1486015924786958398";
 
 const CATEGORY_MAP: Record<string, string> = {
   recruiting: process.env.CATEGORY_RECRUITING ?? "",

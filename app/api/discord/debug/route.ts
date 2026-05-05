@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const DISCORD_API = "https://discord.com/api/v10";
-const MEMBER_LIST_CHANNEL_ID = process.env.MEMBER_LIST_CHANNEL_ID ?? "1486015924786958";
+const MEMBER_LIST_CHANNEL_ID = process.env.MEMBER_LIST_CHANNEL_ID ?? "1486015924786958398";
 
 export async function GET() {
   const token = process.env.DISCORD_BOT_TOKEN;
