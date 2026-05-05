@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
 
 type GmStat = {
-  gm_id: string;
+  gm_id: string | null;
   gm_name: string;
   count: number;
 };
