@@ -274,6 +274,7 @@ export async function GET() {
       const info = await fetchSessionInfo(token, ch.id, memberMapping);
       if (!info) continue;
       if (info.gm_name || info.participants.length > 0) {
+        // GM/PL情報を更新
         await supabase
           .from("events")
           .update({
@@ -282,6 +283,19 @@ export async function GET() {
             ...(info.participants.length > 0 ? { participants: info.participants } : {}),
           })
           .eq("discord_channel_id", ch.id);
+
+        // creator未設定の場合のみGMを作成者として反映
+        if (info.gm_name) {
+          await supabase
+            .from("events")
+            .update({
+              creator_name: info.gm_name,
+              ...(info.gm_id ? { creator_id: info.gm_id } : {}),
+            })
+            .eq("discord_channel_id", ch.id)
+            .is("creator_name", null);
+        }
+
         participantCount++;
       }
     }
