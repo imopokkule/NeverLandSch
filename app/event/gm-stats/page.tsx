@@ -18,22 +18,23 @@ export default function GmStatsPage() {
       const { data } = await supabase
         .from("events")
         .select("gm_id, gm_name")
-        .not("gm_id", "is", null);
+        .not("gm_name", "is", null);
 
       if (!data) { setLoading(false); return; }
 
-      const countMap = new Map<string, { gm_name: string; count: number }>();
+      // gm_nameで集計（gm_idが取れていないセッションも含める）
+      const countMap = new Map<string, { gm_id: string | null; count: number }>();
       for (const ev of data) {
-        if (!ev.gm_id) continue;
-        const existing = countMap.get(ev.gm_id);
-        countMap.set(ev.gm_id, {
-          gm_name: ev.gm_name ?? ev.gm_id,
+        if (!ev.gm_name) continue;
+        const existing = countMap.get(ev.gm_name);
+        countMap.set(ev.gm_name, {
+          gm_id: ev.gm_id ?? existing?.gm_id ?? null,
           count: (existing?.count ?? 0) + 1,
         });
       }
 
       const sorted = Array.from(countMap.entries())
-        .map(([gm_id, { gm_name, count }]) => ({ gm_id, gm_name, count }))
+        .map(([gm_name, { gm_id, count }]) => ({ gm_id, gm_name, count }))
         .sort((a, b) => b.count - a.count);
 
       setStats(sorted);

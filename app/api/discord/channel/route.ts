@@ -149,10 +149,16 @@ async function fetchSessionInfo(
     ? (memberMapping.get(gmName.toLowerCase()) ?? null)
     : null;
 
-  const participants = plNames.map((name) => {
+  // GMをparticipantsの先頭に追加（スケジュール表と連携するため）
+  const participants: string[] = [];
+  if (gmName) {
+    const gmDiscordId = gmId ?? gmName;
+    participants.push(JSON.stringify({ discord_id: gmDiscordId, user_name: gmName, role: "gm" }));
+  }
+  for (const name of plNames) {
     const discordId = memberMapping.get(name.toLowerCase()) ?? name;
-    return JSON.stringify({ discord_id: discordId, user_name: name });
-  });
+    participants.push(JSON.stringify({ discord_id: discordId, user_name: name, role: "pl" }));
+  }
 
   return { gm_id: gmId, gm_name: gmName, participants };
 }
