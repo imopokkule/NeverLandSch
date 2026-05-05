@@ -259,26 +259,24 @@ export async function GET() {
     const memberMapping = await fetchMemberMapping(token, guildId);
     let participantCount = 0;
 
-    if (memberMapping.size > 0) {
-      const noGmChannels = managed.filter((c) => {
-        const ev = existingMap.get(c.id);
-        return !ev || !ev.gm_id;
-      });
+    const noGmChannels = managed.filter((c) => {
+      const ev = existingMap.get(c.id);
+      return !ev || !ev.gm_id;
+    });
 
-      for (const ch of noGmChannels) {
-        const info = await fetchSessionInfo(token, ch.id, memberMapping);
-        if (!info) continue;
-        if (info.gm_id || info.participants.length > 0) {
-          await supabase
-            .from("events")
-            .update({
-              gm_id: info.gm_id,
-              gm_name: info.gm_name,
-              ...(info.participants.length > 0 ? { participants: info.participants } : {}),
-            })
-            .eq("discord_channel_id", ch.id);
-          participantCount++;
-        }
+    for (const ch of noGmChannels) {
+      const info = await fetchSessionInfo(token, ch.id, memberMapping);
+      if (!info) continue;
+      if (info.gm_name || info.participants.length > 0) {
+        await supabase
+          .from("events")
+          .update({
+            gm_id: info.gm_id,
+            gm_name: info.gm_name,
+            ...(info.participants.length > 0 ? { participants: info.participants } : {}),
+          })
+          .eq("discord_channel_id", ch.id);
+        participantCount++;
       }
     }
 
