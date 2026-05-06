@@ -11,10 +11,8 @@ const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_DISCORD_IDS ?? "")
 
 type AppUser = {
   discord_id: string;
-  user_name: string | null;
+  user_name: string;
   avatar_url: string | null;
-  last_login: string | null;
-  created_at: string;
 };
 
 export default function AdminUsersPage() {
@@ -50,11 +48,6 @@ export default function AdminUsersPage() {
 
   if (!isAdmin) return null;
 
-  const fmt = (iso: string | null) => {
-    if (!iso) return "-";
-    return new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
-  };
-
   return (
     <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0a1a1e" }}>
       <div className="max-w-4xl mx-auto space-y-8">
@@ -66,7 +59,7 @@ export default function AdminUsersPage() {
             Users
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            アプリにログインしたユーザーの一覧です。（{users.length} 人）
+            スケジュール登録済みユーザーの一覧です。（{users.length} 人）
           </p>
         </div>
 
@@ -94,10 +87,6 @@ export default function AdminUsersPage() {
                 <p className="text-xs" style={{ color: "#4ecdc4" }}>
                   {u.discord_id}
                 </p>
-              </div>
-              <div className="text-right text-xs flex-shrink-0" style={{ color: "#9ec9b4" }}>
-                <p>最終ログイン</p>
-                <p>{fmt(u.last_login)}</p>
               </div>
             </div>
           ))}

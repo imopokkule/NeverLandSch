@@ -21,12 +21,38 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data, error } = await supabase
-    .from("app_users")
-    .select("*")
-    .order("last_login", { ascending: false });
+  // schedules テーブルから discord_id ごとに最新の user_name を取得
+  const { data: scheduleData, error } = await supabase
+    .from("schedules")
+    .select("discord_id, user_name")
+    .not("discord_id", "is", null);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json(data ?? []);
+  // discord_id で重複排除（最後に出てきた user_name を採用）
+  const userMap = new Map<string, string>();
+  for (const row of scheduleData ?? []) {
+    if (row.discord_id && row.user_name) {
+      userMap.set(row.discord_id, row.user_name);
+    }
+  }
+
+  // app_users からアバターを補完
+  const ids = Array.from(userMap.keys());
+  const { data: appUsers } = await supabase
+    .from("app_users")
+    .select("discord_id, avatar_url")
+    .in("discord_id", ids);
+
+  const avatarMap = new Map<string, string | null>(
+    (appUsers ?? []).map((u) => [u.discord_id, u.avatar_url])
+  );
+
+  const result = Array.from(userMap.entries()).map(([discord_id, user_name]) => ({
+    discord_id,
+    user_name,
+    avatar_url: avatarMap.get(discord_id) ?? null,
+  })).sort((a, b) => a.user_name.localeCompare(b.user_name, "ja"));
+
+  return NextResponse.json(result);
 }
