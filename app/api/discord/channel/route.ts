@@ -103,10 +103,23 @@ async function fetchMemberMapping(
     const siteName = line.slice(arrowIdx + 1).trim();
     if (!siteName || !left) continue;
 
-    // <@userid> 形式 → IDを直接使用（アバターは後で取得できないのでnull）
-    const idMatch = left.match(/<@(\d{10,})/);
+    // <@userid> 形式 → IDからギルドメンバーを取得してアバターを補完
+    const idMatch = left.match(/<@!?(\d{10,})/);
     if (idMatch) {
-      mapping.set(siteName.toLowerCase(), { id: idMatch[1], avatar_url: null });
+      const userId = idMatch[1];
+      let avatar_url: string | null = null;
+      const memberRes = await fetch(
+        `${DISCORD_API}/guilds/${guildId}/members/${userId}`,
+        { headers: { Authorization: `Bot ${token}` } }
+      );
+      if (memberRes.ok) {
+        const member = await memberRes.json();
+        const avatarHash = member.avatar ?? member.user?.avatar;
+        if (avatarHash) {
+          avatar_url = `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.png`;
+        }
+      }
+      mapping.set(siteName.toLowerCase(), { id: userId, avatar_url });
       continue;
     }
 
@@ -229,10 +242,10 @@ export async function GET() {
 
     const { data: existing } = await supabase
       .from("events")
-      .select("discord_channel_id, status, gm_id");
+      .select("discord_channel_id, status, gm_id, creator_name, creator_image");
 
     const existingMap = new Map(
-      (existing ?? []).map((e: { discord_channel_id: string; status: string; gm_id: string | null }) => [
+      (existing ?? []).map((e: { discord_channel_id: string; status: string; gm_id: string | null; creator_name: string | null; creator_image: string | null }) => [
         e.discord_channel_id,
         e,
       ])
@@ -286,7 +299,7 @@ export async function GET() {
 
     const noGmChannels = managed.filter((c) => {
       const ev = existingMap.get(c.id);
-      return !ev || !ev.gm_id;
+      return !ev || !ev.gm_id || !ev.creator_name || !ev.creator_image;
     });
 
     for (const ch of noGmChannels) {
@@ -303,17 +316,25 @@ export async function GET() {
           })
           .eq("discord_channel_id", ch.id);
 
-        // creator未設定の場合のみGMを作成者として反映
+        // creator未設定の場合のみ名前・IDをセット
         if (info.gm_name) {
           await supabase
             .from("events")
             .update({
               creator_name: info.gm_name,
               ...(info.gm_id ? { creator_id: info.gm_id } : {}),
-              ...(info.gm_avatar ? { creator_image: info.gm_avatar } : {}),
             })
             .eq("discord_channel_id", ch.id)
             .is("creator_name", null);
+
+          // creator_imageが未設定の場合はアバターを個別に更新
+          if (info.gm_avatar) {
+            await supabase
+              .from("events")
+              .update({ creator_image: info.gm_avatar })
+              .eq("discord_channel_id", ch.id)
+              .is("creator_image", null);
+          }
         }
 
         participantCount++;
