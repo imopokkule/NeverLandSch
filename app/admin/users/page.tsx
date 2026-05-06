@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/app/lib/supabase";
 
 const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_DISCORD_IDS ?? "")
   .split(",")
@@ -33,12 +32,10 @@ export default function AdminUsersPage() {
       router.replace("/");
       return;
     }
-    supabase
-      .from("app_users")
-      .select("*")
-      .order("last_login", { ascending: false })
-      .then(({ data }) => {
-        setUsers(data ?? []);
+    fetch("/api/admin/users")
+      .then((r) => r.json())
+      .then((data) => {
+        setUsers(Array.isArray(data) ? data : []);
         setLoading(false);
       });
   }, [status, isAdmin, router]);
