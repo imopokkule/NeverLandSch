@@ -73,19 +73,14 @@ export default function EventCreatePage() {
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
 
-  // ステータス選択肢をDBから取得
+  // Discordの実際のカテゴリからステータス選択肢を取得
   useEffect(() => {
-    supabase.from("events").select("status").then(({ data }) => {
-      if (!data) return;
-      const fixed = Object.keys(FIXED_STATUS);
-      const monthly = Array.from(
-        new Set(data.map((e: { status: string }) => e.status).filter((s) => !fixed.includes(s) && s))
-      ).sort() as string[];
-      setStatusOptions([
-        ...Object.entries(FIXED_STATUS).map(([v, l]) => ({ value: v, label: l })),
-        ...monthly.map((s) => ({ value: s, label: s })),
-      ]);
-    });
+    fetch("/api/discord/categories")
+      .then((r) => r.json())
+      .then((opts: { value: string; label: string }[]) => {
+        if (opts.length > 0) setStatusOptions(opts);
+      })
+      .catch(() => {});
   }, []);
 
   // 全ユーザー取得 + 選択月のスケジュール取得

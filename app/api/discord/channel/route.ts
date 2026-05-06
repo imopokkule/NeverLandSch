@@ -368,8 +368,11 @@ export async function GET() {
 
 function toChannelName(title: string): string {
   return title
+    .replace(/[：:]/g, "-")
+    .replace(/[～〜~]/g, "-")
     .replace(/\s+/g, "-")
-    .replace(/[^\p{L}\p{N}_\-：～]/gu, "")
+    .replace(/[^\p{L}\p{N}_\-]/gu, "")
+    .replace(/-{2,}/g, "-")
     .slice(0, 100) || "untitled";
 }
 
@@ -394,7 +397,19 @@ export async function POST(req: Request) {
 
   try {
     if (action === "create") {
-      const categoryId = CATEGORY_MAP[status] || undefined;
+      let categoryId: string | undefined = CATEGORY_MAP[status] || undefined;
+
+      if (!categoryId) {
+        const guildChRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+          headers: { Authorization: `Bot ${token}` },
+        });
+        if (guildChRes.ok) {
+          const allCh: { id: string; type: number; name: string }[] = await guildChRes.json();
+          const match = allCh.find((c) => c.type === 4 && c.name === status);
+          if (match) categoryId = match.id;
+        }
+      }
+
       const body: Record<string, unknown> = { name: toChannelName(title), type: 0 };
       if (categoryId) body.parent_id = categoryId;
 
