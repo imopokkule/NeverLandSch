@@ -149,6 +149,7 @@ async function fetchMemberMapping(
 // セッションチャンネルのTRPGcalender確定メッセージからGM/PLを抽出
 async function fetchSessionInfo(
   token: string,
+  guildId: string,
   channelId: string,
   memberMapping: Map<string, { id: string; avatar_url: string | null }>
 ): Promise<{ gm_id: string | null; gm_name: string | null; gm_avatar: string | null; participants: string[] } | null> {
@@ -180,7 +181,10 @@ async function fetchSessionInfo(
     ? plField.value.split(/[,、]/).map((s) => s.trim()).filter(Boolean)
     : [];
 
-  const gmMember = gmName ? memberMapping.get(gmName.toLowerCase()) : null;
+  let gmMember = gmName ? memberMapping.get(gmName.toLowerCase()) : null;
+  if (!gmMember && gmName) {
+    gmMember = await searchMember(token, guildId, gmName);
+  }
   const gmId = gmMember?.id ?? null;
   const gmAvatar = gmMember?.avatar_url ?? null;
 
@@ -310,7 +314,7 @@ export async function GET() {
     });
 
     for (const ch of noGmChannels) {
-      const info = await fetchSessionInfo(token, ch.id, memberMapping);
+      const info = await fetchSessionInfo(token, guildId, ch.id, memberMapping);
       if (!info) continue;
       if (info.gm_name || info.participants.length > 0) {
         // GM/PL情報を更新
