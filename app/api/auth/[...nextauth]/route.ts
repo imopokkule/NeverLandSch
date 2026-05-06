@@ -1,5 +1,6 @@
 import NextAuth, { AuthOptions } from "next-auth"
 import DiscordProvider, { DiscordProfile } from "next-auth/providers/discord"
+import { createClient } from "@supabase/supabase-js"
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -26,6 +27,28 @@ export const authOptions: AuthOptions = {
   },
 
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "discord") {
+        try {
+          const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+          await supabase.from("app_users").upsert(
+            {
+              discord_id: account.providerAccountId,
+              user_name: user.name,
+              avatar_url: user.image,
+              last_login: new Date().toISOString(),
+            },
+            { onConflict: "discord_id" }
+          );
+        } catch (e) {
+          console.error("Failed to upsert app_users:", e);
+        }
+      }
+      return true;
+    },
     async jwt({ token, account }) {
       if (account) {
         token.discordId = account.providerAccountId;
