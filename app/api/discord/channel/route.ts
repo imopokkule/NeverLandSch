@@ -299,6 +299,9 @@ export async function GET() {
 
     // TRPGcalenderのGM/PL情報を取得（gm_idが未設定のセッションのみ）
     const memberMapping = await fetchMemberMapping(token, guildId);
+    const mappingDebug = Object.fromEntries(
+      Array.from(memberMapping.entries()).map(([k, v]) => [k, { id: v.id, has_avatar: !!v.avatar_url, avatar_url: v.avatar_url }])
+    );
     let participantCount = 0;
 
     const noGmChannels = managed.filter((c) => {
@@ -351,6 +354,7 @@ export async function GET() {
       deleted: toDelete.length,
       participants_updated: participantCount,
       total: managed.length,
+      mapping_debug: mappingDebug,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
