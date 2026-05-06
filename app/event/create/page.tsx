@@ -11,12 +11,12 @@ type User = {
   data: Record<string, number>;
 };
 
-const STATUS_OPTIONS = [
-  { value: "recruiting", label: "募集中" },
-  { value: "confirmed", label: "立卓済み" },
-  { value: "closed_trpg", label: "〆済みTRPG" },
-  { value: "closed_murder", label: "〆済みマダミス" },
-];
+const FIXED_STATUS: Record<string, string> = {
+  recruiting: "募集中",
+  confirmed: "立卓済み",
+  closed_trpg: "〆済みTRPG",
+  closed_murder: "〆済みマダミス",
+};
 
 const getCellLabel = (value: number) => {
   if (value === 3) return "◎";
@@ -65,10 +65,28 @@ export default function EventCreatePage() {
   const [minute, setMinute] = useState("00");
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [creating, setCreating] = useState(false);
+  const [statusOptions, setStatusOptions] = useState<{ value: string; label: string }[]>(
+    Object.entries(FIXED_STATUS).map(([v, l]) => ({ value: v, label: l }))
+  );
 
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
+
+  // ステータス選択肢をDBから取得
+  useEffect(() => {
+    supabase.from("events").select("status").then(({ data }) => {
+      if (!data) return;
+      const fixed = Object.keys(FIXED_STATUS);
+      const monthly = Array.from(
+        new Set(data.map((e: { status: string }) => e.status).filter((s) => !fixed.includes(s) && s))
+      ).sort() as string[];
+      setStatusOptions([
+        ...Object.entries(FIXED_STATUS).map(([v, l]) => ({ value: v, label: l })),
+        ...monthly.map((s) => ({ value: s, label: s })),
+      ]);
+    });
+  }, []);
 
   // 全ユーザー取得 + 選択月のスケジュール取得
   useEffect(() => {
@@ -132,19 +150,26 @@ export default function EventCreatePage() {
     setEventDate(date);
   };
 
+  const buildChannelTitle = () => {
+    if (!eventDate || !title) return title;
+    const [, m, d] = eventDate.split("-").map(Number);
+    return `${m}月${d}日${hour}時～：${title}`;
+  };
+
   const createEvent = async () => {
     if (!title || !eventDate || !session) {
-      alert("タイトルと日付を入力してください");
+      alert("シナリオ名と日付を入力してください");
       return;
     }
     setCreating(true);
+    const channelTitle = buildChannelTitle();
     try {
       // 1. 先に Discord チャンネルを作成してIDを取得
       let discordChannelId: string | null = null;
       const res = await fetch("/api/discord/channel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", title, status }),
+        body: JSON.stringify({ action: "create", title: channelTitle, status }),
       });
 
       if (res.ok) {
@@ -156,7 +181,7 @@ export default function EventCreatePage() {
 
       // 2. チャンネルIDを含めて Supabase にイベント挿入
       const { error } = await supabase.from("events").insert({
-        title,
+        title: channelTitle,
         status,
         event_date: eventDate,
         event_time: `${hour}:${minute}`,
@@ -216,7 +241,7 @@ export default function EventCreatePage() {
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="タイトル"
+              placeholder="シナリオ名"
               className="w-full p-3 rounded"
               style={inputStyle}
             />
@@ -241,7 +266,7 @@ export default function EventCreatePage() {
               </select>
             </div>
             <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full p-3 rounded" style={inputStyle}>
-              {STATUS_OPTIONS.map((opt) => (
+              {statusOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>

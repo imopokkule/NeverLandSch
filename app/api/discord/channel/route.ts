@@ -368,9 +368,8 @@ export async function GET() {
 
 function toChannelName(title: string): string {
   return title
-    .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^\p{L}\p{N}_\-]/gu, "")
+    .replace(/[^\p{L}\p{N}_\-：～]/gu, "")
     .slice(0, 100) || "untitled";
 }
 
