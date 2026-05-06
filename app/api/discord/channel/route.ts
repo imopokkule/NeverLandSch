@@ -16,6 +16,10 @@ const REVERSE_MAP: Record<string, string> = Object.fromEntries(
   Object.entries(CATEGORY_MAP).filter(([, v]) => v).map(([k, v]) => [v, k])
 );
 
+function defaultAvatarUrl(userId: string): string {
+  return `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(userId) >> BigInt(22)) % 6}.png`;
+}
+
 type DiscordMessage = {
   author: { id: string };
   content: string;
@@ -56,7 +60,7 @@ async function searchMember(
   const avatarHash = exact.avatar ?? exact.user.avatar;
   const avatar_url = avatarHash
     ? `https://cdn.discordapp.com/avatars/${exact.user.id}/${avatarHash}.png`
-    : null;
+    : defaultAvatarUrl(exact.user.id);
 
   return { id: exact.user.id, avatar_url };
 }
@@ -115,9 +119,9 @@ async function fetchMemberMapping(
       if (memberRes.ok) {
         const member = await memberRes.json();
         const avatarHash = member.avatar ?? member.user?.avatar;
-        if (avatarHash) {
-          avatar_url = `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.png`;
-        }
+        avatar_url = avatarHash
+          ? `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.png`
+          : defaultAvatarUrl(userId);
       }
       mapping.set(siteName.toLowerCase(), { id: userId, avatar_url });
       continue;
