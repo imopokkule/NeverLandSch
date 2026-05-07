@@ -10,7 +10,7 @@ export const authOptions: AuthOptions = {
       profile(profile: DiscordProfile) {
         return {
           id: profile.id,
-          name: profile.global_name || profile.username,
+          name: profile.username,
           email: profile.email,
           image: profile.avatar
             ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
