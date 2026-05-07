@@ -20,6 +20,26 @@ function defaultAvatarUrl(userId: string): string {
   return `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(userId) >> BigInt(22)) % 6}.png`;
 }
 
+// 確定メッセージの「日時」フィールドをパース ("5/16(土) 21:00〜" など)
+function parseDateTimeField(value: string): { event_date: string; event_time: string; month: string } | null {
+  const match = value.match(/(\d{1,2})\/(\d{1,2})[^\d]*(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const [, mo, da, ho, mi] = match;
+  const month = parseInt(mo, 10);
+  const day   = parseInt(da, 10);
+  const now = new Date();
+  // 現在月より3ヶ月以上前なら翌年として扱う
+  let year = now.getFullYear();
+  if (month < now.getMonth() + 1 - 3) year++;
+  const mm = String(month).padStart(2, "0");
+  const dd = String(day).padStart(2, "0");
+  return {
+    event_date: `${year}-${mm}-${dd}`,
+    event_time: `${ho.padStart(2, "0")}:${mi}`,
+    month: `${year}-${mm}`,
+  };
+}
+
 type DiscordMessage = {
   id: string;
   author: { id: string };
@@ -175,7 +195,7 @@ async function fetchSessionInfo(
   guildId: string,
   channelId: string,
   memberMapping: Map<string, { id: string; avatar_url: string | null; global_name: string | null }>
-): Promise<{ gm_id: string | null; gm_name: string | null; gm_avatar: string | null; participants: string[] } | null> {
+): Promise<{ gm_id: string | null; gm_name: string | null; gm_avatar: string | null; participants: string[]; event_date: string | null; event_time: string | null; month: string | null } | null> {
   const res = await fetch(
     `${DISCORD_API}/channels/${channelId}/messages?limit=50`,
     { headers: { Authorization: `Bot ${token}` } }
@@ -260,7 +280,7 @@ async function fetchSessionInfo(
       participants.push(JSON.stringify({ discord_id: id, user_name: info.displayName, role: "pl" }));
     }
 
-    return { gm_id: gmId, gm_name: gmDisplayName, gm_avatar: gmAvatar, participants };
+    return { gm_id: gmId, gm_name: gmDisplayName, gm_avatar: gmAvatar, participants, event_date: null, event_time: null, month: null };
   }
 
   const embed = confirmMsg.embeds.find((e) =>
@@ -331,7 +351,19 @@ async function fetchSessionInfo(
     }
   }
 
-  return { gm_id: gmId, gm_name: gmDisplayName, gm_avatar: gmAvatar, participants };
+  // 確定メッセージの日時フィールドをパース
+  const dateField = embed.fields.find((f) => f.name === "日時");
+  const dateInfo = dateField ? parseDateTimeField(dateField.value) : null;
+
+  return {
+    gm_id: gmId,
+    gm_name: gmDisplayName,
+    gm_avatar: gmAvatar,
+    participants,
+    event_date: dateInfo?.event_date ?? null,
+    event_time: dateInfo?.event_time ?? null,
+    month: dateInfo?.month ?? null,
+  };
 }
 
 // 管理カテゴリ内のDiscordチャンネルをSupabaseに同期
@@ -381,10 +413,10 @@ export async function GET() {
 
     const { data: existing } = await supabase
       .from("events")
-      .select("discord_channel_id, status, gm_id, creator_name, creator_image, participants");
+      .select("discord_channel_id, status, gm_id, creator_name, creator_image, participants, event_date");
 
     const existingMap = new Map(
-      (existing ?? []).map((e: { discord_channel_id: string; status: string; gm_id: string | null; creator_name: string | null; creator_image: string | null; participants: unknown[] | null }) => [
+      (existing ?? []).map((e: { discord_channel_id: string; status: string; gm_id: string | null; creator_name: string | null; creator_image: string | null; participants: unknown[] | null; event_date: string | null }) => [
         e.discord_channel_id,
         e,
       ])
@@ -439,13 +471,14 @@ export async function GET() {
     );
     let participantCount = 0;
 
-    // GM未設定 または 参加者未設定のチャンネルを同期対象にする
+    // GM未設定・参加者未設定・日時未設定のチャンネルを同期対象にする
     const syncTargetChannels = managed.filter((c) => {
       const ev = existingMap.get(c.id);
       if (!ev) return true;
       const hasParticipants = Array.isArray(ev.participants) && ev.participants.length > 0;
       const hasGmInfo = !!ev.gm_id && !!ev.creator_name && !!ev.creator_image;
-      return !hasParticipants || !hasGmInfo;
+      const hasDate = !!ev.event_date;
+      return !hasParticipants || !hasGmInfo || !hasDate;
     });
 
     for (const ch of syncTargetChannels) {
@@ -455,12 +488,24 @@ export async function GET() {
       const info = await fetchSessionInfo(token, guildId, ch.id, memberMapping);
       if (!info) continue;
 
-      if (info.participants.length > 0 || info.gm_name) {
+      if (info.participants.length > 0 || info.gm_name || info.event_date) {
         // 参加者を更新（常に最新リアクション・メンションで上書き）
         if (info.participants.length > 0) {
           await supabase
             .from("events")
             .update({ participants: info.participants })
+            .eq("discord_channel_id", ch.id);
+        }
+
+        // 確定メッセージから取得した日時を更新（ボット確定情報を優先）
+        if (info.event_date) {
+          await supabase
+            .from("events")
+            .update({
+              event_date: info.event_date,
+              event_time: info.event_time,
+              month: info.month,
+            })
             .eq("discord_channel_id", ch.id);
         }
 
