@@ -57,6 +57,9 @@ export default function GmStatsPage() {
           const name = ev.gm_name || ev.creator_name;
           if (!name) continue;
           const isUndatedConfirmed = ev.status === "confirmed" && !ev.event_date;
+          const isThisMonth = ev.event_date?.startsWith(month) ?? false;
+          // 当月の開催日があるか、日程未定の立卓済みのみカウント
+          if (!isThisMonth && !isUndatedConfirmed) continue;
           const prev = countMap.get(name);
           countMap.set(name, {
             gm_id: prev?.gm_id ?? ev.gm_id ?? ev.creator_id,
