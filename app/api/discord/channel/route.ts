@@ -20,6 +20,33 @@ function defaultAvatarUrl(userId: string): string {
   return `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(userId) >> BigInt(22)) % 6}.png`;
 }
 
+// チャンネル名から日時とシナリオ名を分離 ("5月8日21時〜：タイトル" → title + date)
+function parseChannelName(name: string): {
+  title: string;
+  event_date: string | null;
+  event_time: string | null;
+  month: string | null;
+} {
+  const match = name.match(/^(\d{1,2})月(\d{1,2})日(\d{1,2})時[〜～](?:[：:]\s*)?(.+)$/);
+  if (!match) return { title: name, event_date: null, event_time: null, month: null };
+  const [, mo, da, ho, rawTitle] = match;
+  const month = parseInt(mo, 10);
+  const day   = parseInt(da, 10);
+  const hour  = parseInt(ho, 10);
+  const now = new Date();
+  let year = now.getFullYear();
+  if (month < now.getMonth() + 1 - 3) year++;
+  const mm = String(month).padStart(2, "0");
+  const dd = String(day).padStart(2, "0");
+  const hh = String(hour).padStart(2, "0");
+  return {
+    title: rawTitle.trim(),
+    event_date: `${year}-${mm}-${dd}`,
+    event_time: `${hh}:00`,
+    month: `${year}-${mm}`,
+  };
+}
+
 // 確定メッセージの「日時」フィールドをパース ("5/16(土) 21:00〜" など)
 function parseDateTimeField(value: string): { event_date: string; event_time: string; month: string } | null {
   const match = value.match(/(\d{1,2})\/(\d{1,2})[^\d]*(\d{1,2}):(\d{2})/);
@@ -413,23 +440,31 @@ export async function GET() {
 
     const { data: existing } = await supabase
       .from("events")
-      .select("discord_channel_id, status, gm_id, creator_name, creator_image, participants, event_date");
+      .select("discord_channel_id, title, status, gm_id, creator_name, creator_image, participants, event_date");
 
     const existingMap = new Map(
-      (existing ?? []).map((e: { discord_channel_id: string; status: string; gm_id: string | null; creator_name: string | null; creator_image: string | null; participants: unknown[] | null; event_date: string | null }) => [
+      (existing ?? []).map((e: { discord_channel_id: string; title: string | null; status: string; gm_id: string | null; creator_name: string | null; creator_image: string | null; participants: unknown[] | null; event_date: string | null }) => [
         e.discord_channel_id,
         e,
       ])
     );
 
-    // 未登録チャンネルを挿入
+    // 未登録チャンネルを挿入（チャンネル名から日時とタイトルを分離）
     const toInsert = managed
       .filter((c) => !existingMap.has(c.id))
-      .map((c) => ({
-        title: c.name,
-        status: dynamicReverseMap[c.parent_id!],
-        discord_channel_id: c.id,
-      }));
+      .map((c) => {
+        const parsed = parseChannelName(c.name);
+        return {
+          title: parsed.title,
+          status: dynamicReverseMap[c.parent_id!],
+          discord_channel_id: c.id,
+          ...(parsed.event_date ? {
+            event_date: parsed.event_date,
+            event_time: parsed.event_time,
+            month: parsed.month,
+          } : {}),
+        };
+      });
 
     if (toInsert.length > 0) {
       const { error } = await supabase.from("events").insert(toInsert);
@@ -439,17 +474,33 @@ export async function GET() {
       }
     }
 
-    // 全DBレコードをDiscord上の現在のカテゴリと照合してstatusを更新
+    // 全DBレコードをDiscord上の現在のカテゴリと照合してstatus・タイトル・日時を更新
     let updatedCount = 0;
     for (const [channelId, ev] of existingMap) {
       const ch = allChannelMap.get(channelId);
       if (!ch || !ch.parent_id) continue;
+
+      const parsed = parseChannelName(ch.name);
+      const updates: Record<string, unknown> = {};
+
+      // ステータス変更
       const newStatus = dynamicReverseMap[ch.parent_id];
-      if (newStatus && newStatus !== ev.status) {
-        await supabase
-          .from("events")
-          .update({ status: newStatus })
-          .eq("discord_channel_id", channelId);
+      if (newStatus && newStatus !== ev.status) updates.status = newStatus;
+
+      // タイトルがチャンネル名そのままなら日時部分を除いたシナリオ名に更新
+      if (parsed.title !== ch.name && ev.title === ch.name) {
+        updates.title = parsed.title;
+      }
+
+      // チャンネル名から取得した日時（確定メッセージが未取得の場合のフォールバック）
+      if (parsed.event_date && !ev.event_date) {
+        updates.event_date = parsed.event_date;
+        updates.event_time = parsed.event_time;
+        updates.month = parsed.month;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("events").update(updates).eq("discord_channel_id", channelId);
         updatedCount++;
       }
     }

@@ -46,7 +46,7 @@ export default function EventPage() {
       const { data } = await supabase
         .from("events")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("event_date", { ascending: true, nullsFirst: false });
       const evList = data || [];
       setEvents(evList);
       buildOptions(evList);
@@ -56,7 +56,7 @@ export default function EventPage() {
       const { data: updated } = await supabase
         .from("events")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("event_date", { ascending: true, nullsFirst: false });
       const updatedList = updated || [];
       setEvents(updatedList);
       buildOptions(updatedList);
