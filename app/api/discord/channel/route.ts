@@ -223,7 +223,7 @@ async function fetchSessionInfo(
   guildId: string,
   channelId: string,
   memberMapping: Map<string, { id: string; avatar_url: string | null; global_name: string | null }>
-): Promise<{ gm_id: string | null; gm_name: string | null; gm_avatar: string | null; participants: string[]; event_date: string | null; event_time: string | null; month: string | null } | null> {
+): Promise<{ gm_id: string | null; gm_name: string | null; gm_avatar: string | null; participants: { discord_id: string; user_name: string | null; role: string }[]; event_date: string | null; event_time: string | null; month: string | null } | null> {
   const res = await fetch(
     `${DISCORD_API}/channels/${channelId}/messages?limit=50`,
     { headers: { Authorization: `Bot ${token}` } }
@@ -294,18 +294,18 @@ async function fetchSessionInfo(
     const reactorIds = await fetchReactionUsers(token, channelId, recruitMsg.id, "✋");
     if (reactorIds.length === 0 && !gmId) return null;
 
-    const participants: string[] = [];
+    const participants: { discord_id: string; user_name: string | null; role: string }[] = [];
 
     // GM を先頭に追加
     if (gmId) {
-      participants.push(JSON.stringify({ discord_id: gmId, user_name: gmDisplayName ?? gmId, role: "gm" }));
+      participants.push({ discord_id: gmId, user_name: gmDisplayName ?? gmId, role: "gm" });
     }
 
     // ✋ リアクション者を PL として追加（GM は除外）
     for (const id of reactorIds) {
       if (gmId && id === gmId) continue;
       const info = await resolveMember(id);
-      participants.push(JSON.stringify({ discord_id: id, user_name: info.displayName, role: "pl" }));
+      participants.push({ discord_id: id, user_name: info.displayName, role: "pl" });
     }
 
     return { gm_id: gmId, gm_name: gmDisplayName, gm_avatar: gmAvatar, participants, event_date: null, event_time: null, month: null };
@@ -343,10 +343,10 @@ async function fetchSessionInfo(
   const gmDisplayName = gmMember?.global_name ?? gmName;
 
   // GMをparticipantsの先頭に追加
-  const participants: string[] = [];
+  const participants: { discord_id: string; user_name: string | null; role: string }[] = [];
   if (gmName) {
     const gmDiscordId = gmId ?? gmName;
-    participants.push(JSON.stringify({ discord_id: gmDiscordId, user_name: gmDisplayName, role: "gm" }));
+    participants.push({ discord_id: gmDiscordId, user_name: gmDisplayName, role: "gm" });
   }
 
   if (mentionedIds.length > 0) {
@@ -367,7 +367,7 @@ async function fetchSessionInfo(
           displayName = member.user?.global_name ?? member.user?.username ?? id;
         }
       }
-      participants.push(JSON.stringify({ discord_id: id, user_name: displayName, role: "pl" }));
+      participants.push({ discord_id: id, user_name: displayName, role: "pl" });
     }
   } else {
     // フォールバック：埋め込みの PL 名から解決
@@ -375,7 +375,7 @@ async function fetchSessionInfo(
       const member = memberMapping.get(name.toLowerCase());
       const discordId = member?.id ?? name;
       const displayName = member?.global_name ?? name;
-      participants.push(JSON.stringify({ discord_id: discordId, user_name: displayName, role: "pl" }));
+      participants.push({ discord_id: discordId, user_name: displayName, role: "pl" });
     }
   }
 

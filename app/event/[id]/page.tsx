@@ -214,10 +214,20 @@ export default function EventDetailPage() {
     if (error) { alert("更新失敗"); return; }
 
     if (event.discord_channel_id) {
+      // Discordチャンネル名は「日時+タイトル」形式で更新
+      const channelTitle = event.event_date
+        ? (() => {
+            const [, mo, da] = event.event_date.split("-").map(Number);
+            const ho = parseInt(event.event_time?.split(":")[0] ?? "0", 10);
+            const mi = event.event_time?.split(":")[1] ?? "00";
+            const timeStr = mi === "30" ? `${ho}時半` : `${ho}時`;
+            return `${mo}月${da}日${timeStr}〜：${event.title}`;
+          })()
+        : event.title;
       await fetch("/api/discord/channel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "update", title: event.title, status: event.status, channelId: event.discord_channel_id }),
+        body: JSON.stringify({ action: "update", title: channelTitle, status: event.status, channelId: event.discord_channel_id }),
       });
     }
     alert("更新しました！");

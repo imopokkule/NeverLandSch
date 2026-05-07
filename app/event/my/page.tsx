@@ -35,6 +35,11 @@ const FIXED_STATUS_COLORS: Record<string, string> = {
 const getStatusLabel = (s: string) => FIXED_STATUS_LABELS[s] ?? s;
 const getStatusColor = (s: string) => FIXED_STATUS_COLORS[s] ?? "#a8d8a8";
 
+function stripDatePrefix(title: string): string {
+  const stripped = title.replace(/^\d{1,2}月\d{1,2}日\d{1,2}時(半)?(?:[〜～]?[：:]\s*|[〜～]\s*)?/, "").trim();
+  return stripped || title;
+}
+
 type FilterType = "all" | "joined" | "created";
 
 const FILTERS: { value: FilterType; label: string }[] = [
@@ -54,17 +59,24 @@ export default function MySessionsPage() {
     const userId = session.user.id;
 
     const fetchMyEvents = async () => {
-      const [{ data: created }, { data: joined }] = await Promise.all([
-        supabase.from("events").select("*").eq("creator_id", userId),
-        supabase.from("events").select("*").contains("participants", [{ discord_id: userId }]),
-      ]);
+      const { data: all } = await supabase
+        .from("events")
+        .select("*")
+        .order("event_date", { ascending: true, nullsFirst: false });
 
-      // 重複を除いてマージ・日付順に並べ替え
-      const all = [...(created || []), ...(joined || [])];
-      const unique = Array.from(new Map(all.map(e => [e.id, e])).values());
-      unique.sort((a, b) => (a.event_date ?? "").localeCompare(b.event_date ?? ""));
+      // participants は string（JSON.stringify済み）またはオブジェクトの混在があるため
+      // クライアントサイドで両形式に対応してフィルタリング
+      const myEvents = (all || []).filter((ev) => {
+        if (ev.creator_id === userId) return true;
+        return (ev.participants || []).some((p: unknown) => {
+          if (typeof p === "string") {
+            try { return JSON.parse(p).discord_id === userId; } catch { return false; }
+          }
+          return (p as { discord_id: string })?.discord_id === userId;
+        });
+      });
 
-      setEvents(unique);
+      setEvents(myEvents);
       setLoading(false);
     };
 
@@ -142,7 +154,7 @@ export default function MySessionsPage() {
                       className="text-lg font-semibold"
                       style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif" }}
                     >
-                      {ev.title}
+                      {stripDatePrefix(ev.title)}
                     </h2>
                     <div className="flex items-center gap-3">
                       <span
