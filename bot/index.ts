@@ -79,8 +79,8 @@ function resolveStatus(parentId: string | null | undefined): string | null {
   const category = client.channels.cache.get(parentId);
   if (category && "name" in category && typeof category.name === "string") {
     if (MONTHLY_CONFIRMED_PATTERN.test(category.name)) {
-      console.log(`📅 月別カテゴリ検出: ${category.name} → confirmed`);
-      return "confirmed";
+      console.log(`📅 月別カテゴリ検出: ${category.name}`);
+      return category.name; // カテゴリ名をそのままstatusとして保存
     }
   }
 
