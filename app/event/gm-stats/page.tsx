@@ -133,27 +133,22 @@ export default function GmStatsPage() {
                   </span>
                   <div>
                     <span className="text-base" style={{ color: "#e8f5f0" }}>{s.gm_name}</span>
-                    {s.undatedCount > 0 && (
-                      <div className="text-xs mt-0.5" style={{ color: "#d8c840" }}>
-                        日程未登録: {s.undatedCount}件
-                      </div>
-                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {s.undatedCount > 0 && s.count - s.undatedCount > 0 && (
+                  {s.undatedCount > 0 && (
                     <div className="text-right">
-                      <div className="text-xs" style={{ color: "#9ec9b4" }}>日程あり</div>
-                      <div className="text-lg font-bold" style={{ color: "#4ecdc4", fontFamily: "'Cinzel', serif" }}>
-                        {s.count - s.undatedCount}
+                      <div className="text-xs" style={{ color: "#9ec9b4" }}>日程未登録</div>
+                      <div className="text-lg font-bold" style={{ color: "#d8c840", fontFamily: "'Cinzel', serif" }}>
+                        {s.undatedCount}
                       </div>
                     </div>
                   )}
                   <div className="text-right">
-                    {s.undatedCount > 0 && s.count - s.undatedCount > 0 && <div className="text-xs" style={{ color: "#9ec9b4" }}>合計</div>}
+                    {s.undatedCount > 0 && <div className="text-xs" style={{ color: "#9ec9b4" }}>日程あり</div>}
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold" style={{ color: "#4ecdc4", fontFamily: "'Cinzel', serif" }}>{s.count}</span>
-                      <span className="text-sm" style={{ color: "#9ec9b4" }}>回</span>
+                      <span className="text-2xl font-bold" style={{ color: "#4ecdc4", fontFamily: "'Cinzel', serif" }}>{s.count - s.undatedCount}</span>
+                      <span className="text-sm" style={{ color: "#9ec9b4" }}>件</span>
                     </div>
                   </div>
                 </div>
