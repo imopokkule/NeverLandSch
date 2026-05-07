@@ -23,7 +23,7 @@ type Event = {
 type User = {
   discord_id: string;
   user_name: string;
-  data: Record<string, number>;
+  data: Record<string, number | null>;
   avatar_url?: string | null;
 };
 
@@ -41,13 +41,15 @@ const STATUS_COLORS: Record<string, string> = {
   closed_murder: "#4a8c7a",
 };
 
-const getCellLabel = (v: number) => v === 3 ? "◎" : v === 1 ? "〇" : v === 2 ? "△" : "×";
+const getCellLabel = (v: number | null | undefined) =>
+  v === 3 ? "◎" : v === 1 ? "〇" : v === 2 ? "△" : v === 0 ? "×" : "-";
 
-const getCellStyle = (v: number) => {
+const getCellStyle = (v: number | null | undefined) => {
   if (v === 3) return { backgroundColor: "#0a2818", color: "#4ef0a0", textShadow: "0 0 8px rgba(78,240,160,0.8)" };
   if (v === 1) return { backgroundColor: "#201e08", color: "#e8d040", textShadow: "0 0 8px rgba(232,208,64,0.8)" };
   if (v === 2) return { backgroundColor: "#061220", color: "#508cf0", textShadow: "0 0 8px rgba(80,140,240,0.8)" };
-  return      { backgroundColor: "#200606", color: "#f04848", textShadow: "0 0 8px rgba(240,72,72,0.8)" };
+  if (v === 0) return { backgroundColor: "#200606", color: "#f04848", textShadow: "0 0 8px rgba(240,72,72,0.8)" };
+  return       { backgroundColor: "#112428", color: "#4a6a60" };
 };
 
 const LEGEND = [
@@ -122,18 +124,20 @@ export default function EventDetailPage() {
 
       const participantIds = rawParticipants.map((p) => p.discord_id).filter(Boolean);
 
-      // schedules テーブルから全登録ユーザーを取得
-      const [{ data: scheduleUsers }, { data: scheduleData }, { data: appUserAvatars }] = await Promise.all([
-        supabase.from("schedules").select("discord_id, user_name").not("user_name", "is", null),
-        supabase.from("schedules").select("discord_id, data").eq("month", selectedMonth),
+      // スケジュールデータをAPIルート経由で取得（RLS回避のためサービスロールキー使用）
+      const [schedulesJson, { data: appUserAvatars }] = await Promise.all([
+        fetch(`/api/schedules?month=${selectedMonth}`).then((r) => r.json()),
         supabase.from("app_users").select("discord_id, avatar_url"),
       ]);
 
+      const scheduleUsers: { discord_id: string; user_name: string }[] = schedulesJson.users ?? [];
+      const scheduleData: { discord_id: string; data: Record<string, number | null> }[] = schedulesJson.monthData ?? [];
+
       const nameMap = new Map(
-        (scheduleUsers ?? []).map((u: { discord_id: string; user_name: string }) => [u.discord_id, u.user_name])
+        scheduleUsers.map((u) => [u.discord_id, u.user_name])
       );
       const dataMap = new Map(
-        (scheduleData ?? []).map((s: { discord_id: string; data: Record<string, number> }) => [s.discord_id, s.data])
+        scheduleData.map((s) => [s.discord_id, s.data])
       );
       const avatarMap = new Map(
         (appUserAvatars ?? []).map((u: { discord_id: string; avatar_url: string | null }) => [u.discord_id, u.avatar_url])
@@ -183,18 +187,19 @@ export default function EventDetailPage() {
 
   const getDayStatus = (day: number) => {
     if (participants.length === 0) return "";
-    let hasAll = false, hasDay = false, hasNight = false;
+    let hasAll = false, hasDay = false, hasNight = false, hasAny = false;
     for (const u of participants) {
       const v = u.data?.[String(day)];
       if (v === 0) return "×";
-      if (v === 3) hasAll = true;
-      if (v === 1) hasDay = true;
-      if (v === 2) hasNight = true;
+      if (v === 3) { hasAll = true; hasAny = true; }
+      if (v === 1) { hasDay = true; hasAny = true; }
+      if (v === 2) { hasNight = true; hasAny = true; }
     }
+    if (!hasAny) return "";
     if (hasAll || (hasDay && hasNight)) return "◎";
     if (hasDay) return "〇";
     if (hasNight) return "△";
-    return "×";
+    return "";
   };
 
   const handleDateSelect = (day: number) => {
@@ -442,7 +447,7 @@ export default function EventDetailPage() {
                           {overall}
                         </td>
                         {participants.map((u) => {
-                          const v = u.data?.[String(day)] ?? 0;
+                          const v = u.data?.[String(day)];
                           return (
                             <td key={u.discord_id} className="p-2 text-center text-xs" style={{ ...getCellStyle(v), borderBottom: "1px solid #163240", borderRight: "1px solid #1e3d45" }}>
                               {getCellLabel(v)}
