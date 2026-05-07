@@ -57,6 +57,11 @@ const LEGEND = [
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
+function stripDatePrefix(title: string): string {
+  const stripped = title.replace(/^\d{1,2}月\d{1,2}日\d{1,2}時(半)?(?:[〜～]?[：:]\s*|[〜～]\s*)?/, "").trim();
+  return stripped || title;
+}
+
 const getWeekday = (ym: string, day: number) => {
   const [y, m] = ym.split("-").map(Number);
   return WEEKDAYS[new Date(y, m - 1, day).getDay()];
@@ -94,7 +99,7 @@ export default function EventDetailPage() {
         .single();
       if (error || !data) { setLoading(false); return; }
 
-      setEvent(data);
+      setEvent({ ...data, title: stripDatePrefix(data.title) });
       if (data.month) setSelectedMonth(data.month);
       setLoading(false);
     };

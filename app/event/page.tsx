@@ -35,6 +35,11 @@ function getStatusColor(status: string): string {
   return FIXED_STATUS_COLORS[status] ?? "#a8d8a8";
 }
 
+function stripDatePrefix(title: string): string {
+  const stripped = title.replace(/^\d{1,2}月\d{1,2}日\d{1,2}時(半)?(?:[〜～]?[：:]\s*|[〜～]\s*)?/, "").trim();
+  return stripped || title;
+}
+
 export default function EventPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [filter, setFilter] = useState("all");
@@ -134,7 +139,7 @@ export default function EventPage() {
                     className="text-lg font-semibold"
                     style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif" }}
                   >
-                    {ev.title}
+                    {stripDatePrefix(ev.title)}
                   </h2>
                   <span
                     className="text-xs px-2 py-0.5 rounded-full"
