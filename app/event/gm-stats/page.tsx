@@ -24,21 +24,14 @@ export default function GmStatsPage() {
     const load = async () => {
       setLoading(true);
 
-      // ① 「終了済み」で記録した完了済みカウントを取得
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const countMap = new Map<string, { gm_id: string | null; count: number }>();
+
+      // ① 「終了済み」で記録した完了済みカウントを取得（テーブルが未作成でも無視）
       const { data: statsData } = await supabase
         .from("gm_monthly_stats")
         .select("gm_id, gm_name, count")
         .eq("month", month);
-
-      // ② 現在も一覧に残っているアクティブセッションを取得
-      const { data: activeData } = await supabase
-        .from("events")
-        .select("gm_id, gm_name, creator_name, creator_id")
-        .not("discord_channel_id", "is", null)
-        .like("event_date", `${month}%`);
-
-      // ① + ② をマージ（完了済み + アクティブ）
-      const countMap = new Map<string, { gm_id: string | null; count: number }>();
 
       for (const s of statsData ?? []) {
         const prev = countMap.get(s.gm_name);
@@ -48,17 +41,25 @@ export default function GmStatsPage() {
         });
       }
 
-      for (const ev of activeData ?? []) {
-        const name = ev.gm_name || ev.creator_name;
-        if (!name) continue;
-        const prev = countMap.get(name);
-        countMap.set(name, {
-          gm_id: prev?.gm_id ?? ev.gm_id ?? ev.creator_id,
-          count: (prev?.count ?? 0) + 1,
-        });
-      }
+      // ② 当月表示のときはアクティブセッション全件も集計
+      //    （event_date が未設定のセッションも含めるため date フィルタなし）
+      if (month === currentMonth) {
+        const { data: activeData } = await supabase
+          .from("events")
+          .select("gm_id, gm_name, creator_name, creator_id")
+          .not("discord_channel_id", "is", null)
+          .or("gm_name.not.is.null,creator_name.not.is.null");
 
-      if (countMap.size === 0) { setLoading(false); return; }
+        for (const ev of activeData ?? []) {
+          const name = ev.gm_name || ev.creator_name;
+          if (!name) continue;
+          const prev = countMap.get(name);
+          countMap.set(name, {
+            gm_id: prev?.gm_id ?? ev.gm_id ?? ev.creator_id,
+            count: (prev?.count ?? 0) + 1,
+          });
+        }
+      }
 
       const sorted = Array.from(countMap.entries())
         .map(([gm_name, { gm_id, count }]) => ({ gm_id, gm_name, count }))
