@@ -135,10 +135,16 @@ export default function EventPage() {
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "#4ecdc4"}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "#1e3d45"}
             >
-              <div className="flex justify-between items-center">
-                <div className="space-y-1">
+              <div className="flex justify-between items-start gap-4">
+                <div className="space-y-1 min-w-0">
+                  {ev.event_date && (
+                    <div className="text-xs font-mono" style={{ color: "#4ecdc4" }}>
+                      {ev.event_date.replace(/^(\d+)-(\d+)-(\d+)$/, "$2/$3")}
+                      {ev.event_time && <span style={{ color: "#9ec9b4" }}> {ev.event_time}</span>}
+                    </div>
+                  )}
                   <h2
-                    className="text-lg font-semibold"
+                    className="text-lg font-semibold leading-tight"
                     style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif" }}
                   >
                     {stripDatePrefix(ev.title)}
@@ -153,23 +159,11 @@ export default function EventPage() {
                     {getStatusLabel(ev.status)}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  {ev.event_date && (
-                    <div className="text-right">
-                      <div className="text-xs font-mono" style={{ color: "#4ecdc4" }}>
-                        {ev.event_date.replace(/^(\d+)-(\d+)-(\d+)$/, "$2/$3")}
-                      </div>
-                      {ev.event_time && (
-                        <div className="text-xs" style={{ color: "#9ec9b4" }}>{ev.event_time}</div>
-                      )}
-                    </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {ev.creator_image && (
+                    <img src={ev.creator_image} alt="creator" className="w-8 h-8 rounded-full" style={{ border: "1px solid #1e3d45" }} />
                   )}
-                  <div className="flex items-center gap-2">
-                    {ev.creator_image && (
-                      <img src={ev.creator_image} alt="creator" className="w-8 h-8 rounded-full" style={{ border: "1px solid #1e3d45" }} />
-                    )}
-                    <span className="text-sm" style={{ color: "#9ec9b4" }}>{ev.creator_name}</span>
-                  </div>
+                  <span className="text-sm" style={{ color: "#9ec9b4" }}>{ev.creator_name}</span>
                 </div>
               </div>
             </Link>

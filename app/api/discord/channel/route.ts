@@ -510,10 +510,13 @@ export async function GET() {
     }
 
     // Discordに存在しないチャンネルのイベントをDBから削除
+    // discord_channel_id が null のものはアーカイブ済みなので除外
     const discordChannelIds = new Set(channels.map((c) => c.id));
     const toDelete = (existing ?? [])
-      .map((e: { discord_channel_id: string }) => e.discord_channel_id)
-      .filter((id: string) => !discordChannelIds.has(id));
+      .filter((e: { discord_channel_id: string | null }) =>
+        e.discord_channel_id && !discordChannelIds.has(e.discord_channel_id)
+      )
+      .map((e: { discord_channel_id: string }) => e.discord_channel_id);
 
     if (toDelete.length > 0) {
       await supabase.from("events").delete().in("discord_channel_id", toDelete);

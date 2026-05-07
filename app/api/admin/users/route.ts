@@ -45,7 +45,38 @@ export async function GET() {
       .map((u) => [u.discord_id, u.avatar_url as string])
   );
 
-  // アバター未保存のユーザーはIDから計算したデフォルトアバターを使用（API呼び出し不要）
+  // Discord ギルドメンバー一覧を一括取得してアバターを補完
+  const token = process.env.DISCORD_BOT_TOKEN;
+  const guildId = process.env.DISCORD_GUILD_ID;
+  if (token && guildId) {
+    try {
+      const res = await fetch(
+        `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,
+        { headers: { Authorization: `Bot ${token}` } }
+      );
+      if (res.ok) {
+        const members: Array<{
+          user: { id: string; avatar?: string };
+          avatar?: string;
+        }> = await res.json();
+        for (const m of members) {
+          const uid = m.user.id;
+          if (!avatarMap.has(uid)) {
+            const hash = m.avatar ?? m.user.avatar;
+            avatarMap.set(
+              uid,
+              hash
+                ? `https://cdn.discordapp.com/avatars/${uid}/${hash}.png`
+                : defaultAvatarUrl(uid)
+            );
+          }
+        }
+      }
+    } catch {
+      // Discord API 失敗時はデフォルトアバターで続行
+    }
+  }
+
   const result = ids
     .filter((id) => userMap.has(id))
     .map((discord_id) => ({

@@ -15,6 +15,7 @@ type Event = {
   month: string | null;
   gm_id: string | null;
   gm_name: string | null;
+  creator_id: string | null;
   creator_name: string | null;
   creator_image: string | null;
 };
@@ -23,6 +24,7 @@ type User = {
   discord_id: string;
   user_name: string;
   data: Record<string, number>;
+  avatar_url?: string | null;
 };
 
 const STATUS_OPTIONS = [
@@ -100,7 +102,9 @@ export default function EventDetailPage() {
       if (error || !data) { setLoading(false); return; }
 
       setEvent({ ...data, title: stripDatePrefix(data.title) });
-      if (data.month) setSelectedMonth(data.month);
+      // event.month または event_date の月を初期表示月に設定
+      const initialMonth = data.month || data.event_date?.slice(0, 7) || new Date().toISOString().slice(0, 7);
+      setSelectedMonth(initialMonth);
       setLoading(false);
     };
     fetchEvent();
@@ -119,9 +123,10 @@ export default function EventDetailPage() {
       const participantIds = rawParticipants.map((p) => p.discord_id).filter(Boolean);
 
       // schedules テーブルから全登録ユーザーを取得
-      const [{ data: scheduleUsers }, { data: scheduleData }] = await Promise.all([
+      const [{ data: scheduleUsers }, { data: scheduleData }, { data: appUserAvatars }] = await Promise.all([
         supabase.from("schedules").select("discord_id, user_name").not("user_name", "is", null),
         supabase.from("schedules").select("discord_id, data").eq("month", selectedMonth),
+        supabase.from("app_users").select("discord_id, avatar_url"),
       ]);
 
       const nameMap = new Map(
@@ -129,6 +134,9 @@ export default function EventDetailPage() {
       );
       const dataMap = new Map(
         (scheduleData ?? []).map((s: { discord_id: string; data: Record<string, number> }) => [s.discord_id, s.data])
+      );
+      const avatarMap = new Map(
+        (appUserAvatars ?? []).map((u: { discord_id: string; avatar_url: string | null }) => [u.discord_id, u.avatar_url])
       );
 
       // 参加者一覧をセット（schedules に登録があれば名前を上書き）
@@ -138,11 +146,12 @@ export default function EventDetailPage() {
             discord_id: p.discord_id,
             user_name: nameMap.get(p.discord_id) || p.user_name || p.discord_id,
             data: dataMap.get(p.discord_id) || {},
+            avatar_url: avatarMap.get(p.discord_id) ?? null,
           }))
         );
       }
 
-      // 参加者追加用のユーザー一覧
+      // 参加者追加用のユーザー一覧（GM選択にも使用）
       const unique = Array.from(
         new Map((scheduleUsers ?? []).map((u: { discord_id: string; user_name: string }) => [u.discord_id, u])).values()
       ) as { discord_id: string; user_name: string }[];
@@ -152,6 +161,7 @@ export default function EventDetailPage() {
           discord_id: u.discord_id,
           user_name: u.user_name,
           data: dataMap.get(u.discord_id) || {},
+          avatar_url: avatarMap.get(u.discord_id) ?? null,
         }))
       );
     };
@@ -209,6 +219,11 @@ export default function EventDetailPage() {
       event_time: event.event_time,
       month: selectedMonth,
       participants: participants.map((u) => ({ discord_id: u.discord_id, user_name: u.user_name })),
+      gm_id: event.gm_id,
+      gm_name: event.gm_name,
+      creator_id: event.creator_id ?? event.gm_id,
+      creator_name: event.creator_name ?? event.gm_name,
+      creator_image: event.creator_image,
     }).eq("id", event.id);
 
     if (error) { alert("更新失敗"); return; }
@@ -504,6 +519,41 @@ export default function EventDetailPage() {
                       <option value="30">30分</option>
                     </select>
                   </div>
+                </div>
+              </div>
+
+              {/* GM変更 */}
+              <div>
+                <label className="block mb-2 text-sm" style={{ color: "#9ec9b4" }}>GM</label>
+                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
+                  {allUsers.map((u) => {
+                    const isGm = event.gm_id === u.discord_id || (!event.gm_id && event.gm_name === u.user_name);
+                    return (
+                      <button
+                        key={u.discord_id}
+                        onClick={() => setEvent({
+                          ...event,
+                          gm_id: u.discord_id,
+                          gm_name: u.user_name,
+                          creator_id: u.discord_id,
+                          creator_name: u.user_name,
+                          creator_image: u.avatar_url ?? null,
+                        })}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition"
+                        style={{
+                          backgroundColor: isGm ? "#4ecdc4" : "#112428",
+                          border: `1px solid ${isGm ? "#4ecdc4" : "#1e3d45"}`,
+                          color: isGm ? "#0b1a14" : "#e8f5f0",
+                          fontWeight: isGm ? "700" : "400",
+                        }}
+                      >
+                        {u.avatar_url && (
+                          <img src={u.avatar_url} alt="" className="w-5 h-5 rounded-full" />
+                        )}
+                        {isGm ? "★ " : ""}{u.user_name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

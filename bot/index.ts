@@ -141,15 +141,34 @@ client.on("channelDelete", async (channel) => {
 
     console.log("🗑 Discord channel deleted:", channel.id);
 
-    const { error } = await supabase
+    // 現在のステータスを確認
+    const { data: ev } = await supabase
       .from("events")
-      .delete()
-      .eq("discord_channel_id", channel.id);
+      .select("status")
+      .eq("discord_channel_id", channel.id)
+      .maybeSingle();
 
-    if (error) {
-      console.error("❌ DB delete error:", error);
+    if (!ev) {
+      console.log("⚠ DB にイベントなし（無視）");
+      return;
+    }
+
+    if (ev.status?.startsWith("closed_")) {
+      // 終了済みセッションはアーカイブ（discord_channel_id を null にして DB に残す）
+      const { error } = await supabase
+        .from("events")
+        .update({ discord_channel_id: null })
+        .eq("discord_channel_id", channel.id);
+      if (error) console.error("❌ DB archive error:", error);
+      else console.log("📦 Closed event archived in DB");
     } else {
-      console.log("✅ Event removed from DB");
+      // 進行中セッションは削除
+      const { error } = await supabase
+        .from("events")
+        .delete()
+        .eq("discord_channel_id", channel.id);
+      if (error) console.error("❌ DB delete error:", error);
+      else console.log("✅ Event removed from DB");
     }
   } catch (err) {
     console.error("❌ channelDelete error:", err);
