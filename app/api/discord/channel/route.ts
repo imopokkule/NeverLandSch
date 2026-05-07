@@ -187,27 +187,59 @@ async function fetchSessionInfo(
     ? plField.value.split(/[,、]/).map((s) => s.trim()).filter(Boolean)
     : [];
 
+  // メッセージ本文のメンション（<@userid>）から Discord ID を直接取得
+  const mentionedIds = Array.from(confirmMsg.content.matchAll(/<@!?(\d+)>/g)).map((m) => m[1]);
+
+  // id → {global_name, avatar_url} の逆引きマップ
+  const idToInfo = new Map<string, { global_name: string | null; avatar_url: string | null }>();
+  for (const info of memberMapping.values()) {
+    if (info.id) idToInfo.set(info.id, { global_name: info.global_name, avatar_url: info.avatar_url });
+  }
+
+  // GM解決（埋め込みのサイト名からメンバーマッピングで引く）
   let gmMember = gmName ? memberMapping.get(gmName.toLowerCase()) : null;
   if (!gmMember && gmName) {
     gmMember = await searchMember(token, guildId, gmName);
   }
   const gmId = gmMember?.id ?? null;
   const gmAvatar = gmMember?.avatar_url ?? null;
-  // Discord ID が解決できた場合はグローバル表示名を優先使用
   const gmDisplayName = gmMember?.global_name ?? gmName;
 
-  // GMをparticipantsの先頭に追加（スケジュール表と連携するため）
+  // GMをparticipantsの先頭に追加
   const participants: string[] = [];
   if (gmName) {
     const gmDiscordId = gmId ?? gmName;
     participants.push(JSON.stringify({ discord_id: gmDiscordId, user_name: gmDisplayName, role: "gm" }));
   }
-  for (const name of plNames) {
-    const member = memberMapping.get(name.toLowerCase());
-    const discordId = member?.id ?? name;
-    // Discord ID が解決できた場合はグローバル表示名を優先使用
-    const displayName = member?.global_name ?? name;
-    participants.push(JSON.stringify({ discord_id: discordId, user_name: displayName, role: "pl" }));
+
+  if (mentionedIds.length > 0) {
+    // メンション ID からPLを構築（GMを除外）
+    for (const id of mentionedIds) {
+      if (gmId && id === gmId) continue;
+
+      let displayName = id;
+      if (idToInfo.has(id)) {
+        displayName = idToInfo.get(id)!.global_name ?? id;
+      } else {
+        // マッピングにない場合は Discord API から直接取得
+        const memberRes = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${id}`, {
+          headers: { Authorization: `Bot ${token}` },
+        });
+        if (memberRes.ok) {
+          const member = await memberRes.json();
+          displayName = member.user?.global_name ?? member.user?.username ?? id;
+        }
+      }
+      participants.push(JSON.stringify({ discord_id: id, user_name: displayName, role: "pl" }));
+    }
+  } else {
+    // フォールバック：埋め込みの PL 名から解決
+    for (const name of plNames) {
+      const member = memberMapping.get(name.toLowerCase());
+      const discordId = member?.id ?? name;
+      const displayName = member?.global_name ?? name;
+      participants.push(JSON.stringify({ discord_id: discordId, user_name: displayName, role: "pl" }));
+    }
   }
 
   return { gm_id: gmId, gm_name: gmDisplayName, gm_avatar: gmAvatar, participants };
