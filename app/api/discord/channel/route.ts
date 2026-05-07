@@ -20,16 +20,17 @@ function defaultAvatarUrl(userId: string): string {
   return `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(userId) >> BigInt(22)) % 6}.png`;
 }
 
-// チャンネル名から日時とシナリオ名を分離 ("5月8日21時〜：タイトル" → title + date)
+// チャンネル名から日時とシナリオ名を分離
+// "5月8日21時〜：タイトル" / "5月18日21時：タイトル" / "2月24日21時半タイトル" など対応
 function parseChannelName(name: string): {
   title: string;
   event_date: string | null;
   event_time: string | null;
   month: string | null;
 } {
-  const match = name.match(/^(\d{1,2})月(\d{1,2})日(\d{1,2})時[〜～](?:[：:]\s*)?(.+)$/);
+  const match = name.match(/^(\d{1,2})月(\d{1,2})日(\d{1,2})時(半)?(?:[〜～]?[：:]\s*|[〜～]\s*)?(.+)$/);
   if (!match) return { title: name, event_date: null, event_time: null, month: null };
-  const [, mo, da, ho, rawTitle] = match;
+  const [, mo, da, ho, , rawTitle] = match;
   const month = parseInt(mo, 10);
   const day   = parseInt(da, 10);
   const hour  = parseInt(ho, 10);
@@ -487,8 +488,11 @@ export async function GET() {
       const newStatus = dynamicReverseMap[ch.parent_id];
       if (newStatus && newStatus !== ev.status) updates.status = newStatus;
 
-      // タイトルがチャンネル名そのままなら日時部分を除いたシナリオ名に更新
-      if (parsed.title !== ch.name && ev.title === ch.name) {
+      // DBのタイトル自体に日時プレフィックスがある場合は除去（既存レコードの一括クリーンアップ）
+      const evTitleParsed = parseChannelName(ev.title ?? "");
+      if (evTitleParsed.title !== (ev.title ?? "")) {
+        updates.title = evTitleParsed.title;
+      } else if (parsed.title !== ch.name && ev.title === ch.name) {
         updates.title = parsed.title;
       }
 
