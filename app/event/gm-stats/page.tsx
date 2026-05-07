@@ -56,15 +56,15 @@ export default function GmStatsPage() {
         for (const ev of activeData ?? []) {
           const name = ev.gm_name || ev.creator_name;
           if (!name) continue;
-          const isUndatedConfirmed = ev.status === "confirmed" && !ev.event_date;
+          const isUndated = !ev.event_date;
           const isThisMonth = ev.event_date?.startsWith(month) ?? false;
-          // 当月の開催日があるか、日程未定の立卓済みのみカウント
-          if (!isThisMonth && !isUndatedConfirmed) continue;
+          // 当月の開催日があるか、日程未登録のみカウント
+          if (!isThisMonth && !isUndated) continue;
           const prev = countMap.get(name);
           countMap.set(name, {
             gm_id: prev?.gm_id ?? ev.gm_id ?? ev.creator_id,
             count: (prev?.count ?? 0) + 1,
-            undatedCount: (prev?.undatedCount ?? 0) + (isUndatedConfirmed ? 1 : 0),
+            undatedCount: (prev?.undatedCount ?? 0) + (isUndated ? 1 : 0),
           });
         }
       }
@@ -135,7 +135,7 @@ export default function GmStatsPage() {
                     <span className="text-base" style={{ color: "#e8f5f0" }}>{s.gm_name}</span>
                     {s.undatedCount > 0 && (
                       <div className="text-xs mt-0.5" style={{ color: "#d8c840" }}>
-                        日程未定の立卓済み: {s.undatedCount}件
+                        日程未登録: {s.undatedCount}件
                       </div>
                     )}
                   </div>
