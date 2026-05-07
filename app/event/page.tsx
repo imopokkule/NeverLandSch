@@ -53,6 +53,7 @@ export default function EventPage() {
       const { data } = await supabase
         .from("events")
         .select("*")
+        .not("discord_channel_id", "is", null)
         .order("event_date", { ascending: true, nullsFirst: false });
       const evList = data || [];
       setEvents(evList);
@@ -63,6 +64,7 @@ export default function EventPage() {
       const { data: updated } = await supabase
         .from("events")
         .select("*")
+        .not("discord_channel_id", "is", null)
         .order("event_date", { ascending: true, nullsFirst: false });
       const updatedList = updated || [];
       setEvents(updatedList);

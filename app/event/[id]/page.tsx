@@ -248,6 +248,25 @@ export default function EventDetailPage() {
     alert("更新しました！");
   };
 
+  const completeEvent = async () => {
+    if (!event) return;
+    const gmLabel = event.gm_name || event.creator_name || "GM未設定";
+    if (!confirm(`「${event.title}」を終了済みにしますか？\n\nGM: ${gmLabel} の当月カウントに +1 されます。\nセッションと Discord チャンネルは削除されます。`)) return;
+
+    const res = await fetch("/api/events/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventId: event.id }),
+    });
+
+    if (res.ok) {
+      router.push("/event");
+    } else {
+      const d = await res.json().catch(() => ({}));
+      alert(`失敗しました: ${d.error ?? res.status}`);
+    }
+  };
+
   const deleteEvent = async () => {
     if (!event || !confirm("本当に削除しますか？")) return;
     if (event.discord_channel_id) {
@@ -590,6 +609,13 @@ export default function EventDetailPage() {
                   style={{ backgroundColor: "#4ecdc4", color: "#0b1a14", fontFamily: "'Cinzel', serif" }}
                 >
                   Save
+                </button>
+                <button
+                  onClick={completeEvent}
+                  className="px-6 py-3 rounded-xl font-bold tracking-widest"
+                  style={{ backgroundColor: "#1a3a1a", color: "#4ef0a0", border: "1px solid #4ef0a0" }}
+                >
+                  終了済み
                 </button>
                 <button
                   onClick={deleteEvent}

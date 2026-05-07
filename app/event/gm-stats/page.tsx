@@ -24,28 +24,15 @@ export default function GmStatsPage() {
     const load = async () => {
       setLoading(true);
 
-      // event_date が選択月のセッションを取得（discord_channel_id が null のアーカイブ済みも含む）
+      // 「終了済み」ボタンで集計した月別カウントを取得
       const { data } = await supabase
-        .from("events")
-        .select("gm_id, gm_name, creator_name, status")
-        .not("gm_name", "is", null)
-        .like("event_date", `${month}%`);
+        .from("gm_monthly_stats")
+        .select("gm_id, gm_name, count")
+        .eq("month", month);
 
       if (!data) { setLoading(false); return; }
 
-      const countMap = new Map<string, { gm_id: string | null; count: number }>();
-      for (const ev of data) {
-        const name = ev.gm_name || ev.creator_name;
-        if (!name) continue;
-        const existing = countMap.get(name);
-        countMap.set(name, {
-          gm_id: ev.gm_id ?? existing?.gm_id ?? null,
-          count: (existing?.count ?? 0) + 1,
-        });
-      }
-
-      const sorted = Array.from(countMap.entries())
-        .map(([gm_name, { gm_id, count }]) => ({ gm_id, gm_name, count }))
+      const sorted = [...data]
         .sort((a, b) => b.count - a.count);
 
       setStats(sorted);
