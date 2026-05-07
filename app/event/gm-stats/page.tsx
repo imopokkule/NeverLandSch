@@ -45,8 +45,8 @@ export default function GmStatsPage() {
         });
       }
 
-      // ② 当月はアクティブセッション全件も集計
-      if (month === currentMonth) {
+      // ② 当月以降はアクティブセッションも集計（翌月以降も未完了セッションを含める）
+      if (month >= currentMonth) {
         const { data: activeData } = await supabase
           .from("events")
           .select("gm_id, gm_name, creator_name, creator_id, status, event_date")

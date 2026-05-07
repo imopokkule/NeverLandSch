@@ -110,10 +110,15 @@ export default function GmSessionsPage() {
       // 分類
       // ① 日程未定 + 立卓済み → 別枠
       const undated = allEvents.filter((e) => e.status === "confirmed" && !e.event_date);
-      // ② それ以外（日程あり、または立卓済み以外）
+      // ② それ以外（日程あり、または立卓済み以外）— 日程あり優先・日付昇順、日程なしは末尾
       const dated = allEvents
         .filter((e) => !(e.status === "confirmed" && !e.event_date))
-        .sort((a, b) => (a.event_date ?? "").localeCompare(b.event_date ?? ""));
+        .sort((a, b) => {
+          if (!a.event_date && !b.event_date) return 0;
+          if (!a.event_date) return 1;
+          if (!b.event_date) return -1;
+          return a.event_date.localeCompare(b.event_date);
+        });
 
       setDatedEvents(dated);
       setUndatedConfirmed(undated);
