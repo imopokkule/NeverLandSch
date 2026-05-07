@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 
 type GmStat = {
   gm_id: string | null;
   gm_name: string;
-  count: number;
+  count: number;         // 合計（日程あり + 日程未定含む）
+  undatedCount: number;  // 立卓済み かつ event_date 未設定の数
 };
 
 export default function GmStatsPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<GmStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -25,9 +28,9 @@ export default function GmStatsPage() {
       setLoading(true);
 
       const currentMonth = new Date().toISOString().slice(0, 7);
-      const countMap = new Map<string, { gm_id: string | null; count: number }>();
+      const countMap = new Map<string, { gm_id: string | null; count: number; undatedCount: number }>();
 
-      // ① 「終了済み」で記録した完了済みカウントを取得（テーブルが未作成でも無視）
+      // ① 完了済みカウント（gm_monthly_stats）
       const { data: statsData } = await supabase
         .from("gm_monthly_stats")
         .select("gm_id, gm_name, count")
@@ -38,31 +41,33 @@ export default function GmStatsPage() {
         countMap.set(s.gm_name, {
           gm_id: prev?.gm_id ?? s.gm_id,
           count: (prev?.count ?? 0) + s.count,
+          undatedCount: prev?.undatedCount ?? 0,
         });
       }
 
-      // ② 当月表示のときはアクティブセッション全件も集計
-      //    （event_date が未設定のセッションも含めるため date フィルタなし）
+      // ② 当月はアクティブセッション全件も集計
       if (month === currentMonth) {
         const { data: activeData } = await supabase
           .from("events")
-          .select("gm_id, gm_name, creator_name, creator_id")
+          .select("gm_id, gm_name, creator_name, creator_id, status, event_date")
           .not("discord_channel_id", "is", null)
           .or("gm_name.not.is.null,creator_name.not.is.null");
 
         for (const ev of activeData ?? []) {
           const name = ev.gm_name || ev.creator_name;
           if (!name) continue;
+          const isUndatedConfirmed = ev.status === "confirmed" && !ev.event_date;
           const prev = countMap.get(name);
           countMap.set(name, {
             gm_id: prev?.gm_id ?? ev.gm_id ?? ev.creator_id,
             count: (prev?.count ?? 0) + 1,
+            undatedCount: (prev?.undatedCount ?? 0) + (isUndatedConfirmed ? 1 : 0),
           });
         }
       }
 
       const sorted = Array.from(countMap.entries())
-        .map(([gm_name, { gm_id, count }]) => ({ gm_id, gm_name, count }))
+        .map(([gm_name, { gm_id, count, undatedCount }]) => ({ gm_id, gm_name, count, undatedCount }))
         .sort((a, b) => b.count - a.count);
 
       setStats(sorted);
@@ -71,43 +76,34 @@ export default function GmStatsPage() {
     load();
   }, [month]);
 
+  const handleCardClick = (s: GmStat) => {
+    // gm_id（Discord ID）があればそれを使い、なければ名前をエンコード
+    const param = s.gm_id ?? encodeURIComponent(s.gm_name);
+    router.push(`/gm/${param}`);
+  };
+
   return (
     <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0a1a1e" }}>
       <div className="max-w-2xl mx-auto space-y-8">
 
         <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1e3d45" }}>
-          <h1
-            className="text-4xl font-bold tracking-widest"
-            style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}
-          >
+          <h1 className="text-4xl font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
             GM Stats
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            選択月に開催日があるセッションのGM集計です。
+            当月のGM別セッション数。カードをクリックするとセッション一覧を表示します。
           </p>
         </div>
 
         {/* 月選択 */}
         <div className="flex items-center justify-between px-5 py-4 rounded-xl" style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}>
-          <button
-            onClick={() => shiftMonth(-1)}
-            className="text-xl font-bold px-2 hover:opacity-70 transition"
-            style={{ color: "#4ecdc4" }}
-          >
-            ‹
-          </button>
+          <button onClick={() => shiftMonth(-1)} className="text-xl font-bold px-2 hover:opacity-70 transition" style={{ color: "#4ecdc4" }}>‹</button>
           <div className="text-center" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
             <span style={{ fontSize: "1.7rem", fontWeight: "900" }}>{month.slice(0, 4)}</span>
             <span style={{ fontSize: "1.1rem", margin: "0 0.4em", color: "#9ec9b4" }}>/</span>
             <span style={{ fontSize: "1.7rem", fontWeight: "900" }}>{month.slice(5, 7)}</span>
           </div>
-          <button
-            onClick={() => shiftMonth(1)}
-            className="text-xl font-bold px-2 hover:opacity-70 transition"
-            style={{ color: "#4ecdc4" }}
-          >
-            ›
-          </button>
+          <button onClick={() => shiftMonth(1)} className="text-xl font-bold px-2 hover:opacity-70 transition" style={{ color: "#4ecdc4" }}>›</button>
         </div>
 
         {loading ? (
@@ -119,26 +115,44 @@ export default function GmStatsPage() {
             {stats.map((s, i) => (
               <div
                 key={s.gm_id ?? s.gm_name}
-                className="flex items-center justify-between p-4 rounded-xl"
+                onClick={() => handleCardClick(s)}
+                className="flex items-center justify-between p-4 rounded-xl cursor-pointer transition"
                 style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}
+                onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#4ecdc4"}
+                onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#1e3d45"}
               >
                 <div className="flex items-center gap-4">
                   <span
                     className="text-lg font-bold w-8 text-right"
-                    style={{
-                      color: i === 0 ? "#f0c040" : i === 1 ? "#b0b8c8" : i === 2 ? "#cd7f32" : "#4ecdc4",
-                      fontFamily: "'Cinzel', serif",
-                    }}
+                    style={{ color: i === 0 ? "#f0c040" : i === 1 ? "#b0b8c8" : i === 2 ? "#cd7f32" : "#4ecdc4", fontFamily: "'Cinzel', serif" }}
                   >
                     {i + 1}
                   </span>
-                  <span className="text-base" style={{ color: "#e8f5f0" }}>{s.gm_name}</span>
+                  <div>
+                    <span className="text-base" style={{ color: "#e8f5f0" }}>{s.gm_name}</span>
+                    {s.undatedCount > 0 && (
+                      <div className="text-xs mt-0.5" style={{ color: "#d8c840" }}>
+                        日程未定の立卓済み: {s.undatedCount}件
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold" style={{ color: "#4ecdc4", fontFamily: "'Cinzel', serif" }}>
-                    {s.count}
-                  </span>
-                  <span className="text-sm" style={{ color: "#9ec9b4" }}>回</span>
+                <div className="flex items-center gap-3">
+                  {s.undatedCount > 0 && (
+                    <div className="text-right">
+                      <div className="text-xs" style={{ color: "#9ec9b4" }}>日程あり</div>
+                      <div className="text-lg font-bold" style={{ color: "#4ecdc4", fontFamily: "'Cinzel', serif" }}>
+                        {s.count - s.undatedCount}
+                      </div>
+                    </div>
+                  )}
+                  <div className="text-right">
+                    {s.undatedCount > 0 && <div className="text-xs" style={{ color: "#9ec9b4" }}>合計</div>}
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-bold" style={{ color: "#4ecdc4", fontFamily: "'Cinzel', serif" }}>{s.count}</span>
+                      <span className="text-sm" style={{ color: "#9ec9b4" }}>回</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
