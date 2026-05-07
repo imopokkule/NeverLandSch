@@ -35,7 +35,7 @@ async function searchMember(
   token: string,
   guildId: string,
   displayName: string
-): Promise<{ id: string; avatar_url: string | null } | null> {
+): Promise<{ id: string; avatar_url: string | null; global_name: string | null } | null> {
   const res = await fetch(
     `${DISCORD_API}/guilds/${guildId}/members/search?query=${encodeURIComponent(displayName)}&limit=10`,
     { headers: { Authorization: `Bot ${token}` } }
@@ -62,15 +62,19 @@ async function searchMember(
     ? `https://cdn.discordapp.com/avatars/${exact.user.id}/${avatarHash}.png`
     : defaultAvatarUrl(exact.user.id);
 
-  return { id: exact.user.id, avatar_url };
+  return {
+    id: exact.user.id,
+    avatar_url,
+    global_name: exact.user.global_name ?? exact.user.username ?? null,
+  };
 }
 
-// メンバー一覧から サイト名(lowercase) → {id, avatar_url} マッピングを取得
+// メンバー一覧から サイト名(lowercase) → {id, avatar_url, global_name} マッピングを取得
 async function fetchMemberMapping(
   token: string,
   guildId: string
-): Promise<Map<string, { id: string; avatar_url: string | null }>> {
-  const mapping = new Map<string, { id: string; avatar_url: string | null }>();
+): Promise<Map<string, { id: string; avatar_url: string | null; global_name: string | null }>> {
+  const mapping = new Map<string, { id: string; avatar_url: string | null; global_name: string | null }>();
 
   const res = await fetch(
     `${DISCORD_API}/channels/${MEMBER_LIST_CHANNEL_ID}/messages?limit=20`,
@@ -107,11 +111,12 @@ async function fetchMemberMapping(
     const siteName = line.slice(arrowIdx + 1).trim();
     if (!siteName || !left) continue;
 
-    // <@userid> 形式 → IDからギルドメンバーを取得してアバターを補完
+    // <@userid> 形式 → IDからギルドメンバーを取得してアバターとグローバル表示名を補完
     const idMatch = left.match(/<@!?(\d{10,})/);
     if (idMatch) {
       const userId = idMatch[1];
       let avatar_url: string | null = null;
+      let global_name: string | null = null;
       const memberRes = await fetch(
         `${DISCORD_API}/guilds/${guildId}/members/${userId}`,
         { headers: { Authorization: `Bot ${token}` } }
@@ -122,8 +127,9 @@ async function fetchMemberMapping(
         avatar_url = avatarHash
           ? `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.png`
           : defaultAvatarUrl(userId);
+        global_name = member.user?.global_name ?? member.user?.username ?? null;
       }
-      mapping.set(siteName.toLowerCase(), { id: userId, avatar_url });
+      mapping.set(siteName.toLowerCase(), { id: userId, avatar_url, global_name });
       continue;
     }
 
@@ -151,7 +157,7 @@ async function fetchSessionInfo(
   token: string,
   guildId: string,
   channelId: string,
-  memberMapping: Map<string, { id: string; avatar_url: string | null }>
+  memberMapping: Map<string, { id: string; avatar_url: string | null; global_name: string | null }>
 ): Promise<{ gm_id: string | null; gm_name: string | null; gm_avatar: string | null; participants: string[] } | null> {
   const res = await fetch(
     `${DISCORD_API}/channels/${channelId}/messages?limit=50`,
@@ -187,20 +193,24 @@ async function fetchSessionInfo(
   }
   const gmId = gmMember?.id ?? null;
   const gmAvatar = gmMember?.avatar_url ?? null;
+  // Discord ID が解決できた場合はグローバル表示名を優先使用
+  const gmDisplayName = gmMember?.global_name ?? gmName;
 
   // GMをparticipantsの先頭に追加（スケジュール表と連携するため）
   const participants: string[] = [];
   if (gmName) {
     const gmDiscordId = gmId ?? gmName;
-    participants.push(JSON.stringify({ discord_id: gmDiscordId, user_name: gmName, role: "gm" }));
+    participants.push(JSON.stringify({ discord_id: gmDiscordId, user_name: gmDisplayName, role: "gm" }));
   }
   for (const name of plNames) {
     const member = memberMapping.get(name.toLowerCase());
     const discordId = member?.id ?? name;
-    participants.push(JSON.stringify({ discord_id: discordId, user_name: name, role: "pl" }));
+    // Discord ID が解決できた場合はグローバル表示名を優先使用
+    const displayName = member?.global_name ?? name;
+    participants.push(JSON.stringify({ discord_id: discordId, user_name: displayName, role: "pl" }));
   }
 
-  return { gm_id: gmId, gm_name: gmName, gm_avatar: gmAvatar, participants };
+  return { gm_id: gmId, gm_name: gmDisplayName, gm_avatar: gmAvatar, participants };
 }
 
 // 管理カテゴリ内のDiscordチャンネルをSupabaseに同期
@@ -304,7 +314,7 @@ export async function GET() {
     // TRPGcalenderのGM/PL情報を取得（gm_idが未設定のセッションのみ）
     const memberMapping = await fetchMemberMapping(token, guildId);
     const mappingDebug = Object.fromEntries(
-      Array.from(memberMapping.entries()).map(([k, v]) => [k, { id: v.id, has_avatar: !!v.avatar_url, avatar_url: v.avatar_url }])
+      Array.from(memberMapping.entries()).map(([k, v]) => [k, { id: v.id, has_avatar: !!v.avatar_url, avatar_url: v.avatar_url, global_name: v.global_name }])
     );
     let participantCount = 0;
 
