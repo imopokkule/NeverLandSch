@@ -199,33 +199,68 @@ async function fetchSessionInfo(
     );
     if (!recruitMsg) return null;
 
-    const reactorIds = await fetchReactionUsers(token, channelId, recruitMsg.id, "✋");
-    if (reactorIds.length === 0) return null;
-
-    // id → {global_name} 逆引きマップ
-    const idToInfo = new Map<string, { global_name: string | null }>();
+    // id → {global_name, avatar_url} 逆引きマップ
+    const idToInfo = new Map<string, { global_name: string | null; avatar_url: string | null }>();
     for (const info of memberMapping.values()) {
-      if (info.id) idToInfo.set(info.id, { global_name: info.global_name });
+      if (info.id) idToInfo.set(info.id, { global_name: info.global_name, avatar_url: info.avatar_url });
     }
+
+    // Discord メンバー情報を取得するヘルパー
+    const resolveMember = async (id: string): Promise<{ displayName: string; avatar_url: string | null }> => {
+      if (idToInfo.has(id)) {
+        const info = idToInfo.get(id)!;
+        return { displayName: info.global_name ?? id, avatar_url: info.avatar_url };
+      }
+      const memberRes = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${id}`, {
+        headers: { Authorization: `Bot ${token}` },
+      });
+      if (memberRes.ok) {
+        const member = await memberRes.json();
+        const avatarHash = member.avatar ?? member.user?.avatar;
+        return {
+          displayName: member.user?.global_name ?? member.user?.username ?? id,
+          avatar_url: avatarHash
+            ? `https://cdn.discordapp.com/avatars/${id}/${avatarHash}.png`
+            : defaultAvatarUrl(id),
+        };
+      }
+      return { displayName: id, avatar_url: null };
+    };
+
+    // 募集メッセージより前の !参加募集 コマンドを使ったユーザーを GM として特定
+    const recruitMsgIndex = messages.findIndex((m) => m.id === recruitMsg.id);
+    const commandMsg = messages.slice(recruitMsgIndex + 1).find(
+      (m) => m.author.id !== TRPG_BOT_ID && m.content.includes("!参加募集")
+    );
+
+    let gmId: string | null = null;
+    let gmDisplayName: string | null = null;
+    let gmAvatar: string | null = null;
+    if (commandMsg) {
+      gmId = commandMsg.author.id;
+      const info = await resolveMember(gmId);
+      gmDisplayName = info.displayName;
+      gmAvatar = info.avatar_url;
+    }
+
+    const reactorIds = await fetchReactionUsers(token, channelId, recruitMsg.id, "✋");
+    if (reactorIds.length === 0 && !gmId) return null;
 
     const participants: string[] = [];
-    for (const id of reactorIds) {
-      let displayName = id;
-      if (idToInfo.has(id)) {
-        displayName = idToInfo.get(id)!.global_name ?? id;
-      } else {
-        const memberRes = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${id}`, {
-          headers: { Authorization: `Bot ${token}` },
-        });
-        if (memberRes.ok) {
-          const member = await memberRes.json();
-          displayName = member.user?.global_name ?? member.user?.username ?? id;
-        }
-      }
-      participants.push(JSON.stringify({ discord_id: id, user_name: displayName, role: "pl" }));
+
+    // GM を先頭に追加
+    if (gmId) {
+      participants.push(JSON.stringify({ discord_id: gmId, user_name: gmDisplayName ?? gmId, role: "gm" }));
     }
 
-    return { gm_id: null, gm_name: null, gm_avatar: null, participants };
+    // ✋ リアクション者を PL として追加（GM は除外）
+    for (const id of reactorIds) {
+      if (gmId && id === gmId) continue;
+      const info = await resolveMember(id);
+      participants.push(JSON.stringify({ discord_id: id, user_name: info.displayName, role: "pl" }));
+    }
+
+    return { gm_id: gmId, gm_name: gmDisplayName, gm_avatar: gmAvatar, participants };
   }
 
   const embed = confirmMsg.embeds.find((e) =>
