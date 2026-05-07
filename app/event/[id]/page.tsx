@@ -105,7 +105,7 @@ export default function EventDetailPage() {
 
       setEvent({ ...data, title: stripDatePrefix(data.title) });
       // event.month または event_date の月を初期表示月に設定
-      const initialMonth = data.month || data.event_date?.slice(0, 7) || new Date().toISOString().slice(0, 7);
+      const initialMonth = data.event_date?.slice(0, 7) || data.month || new Date().toISOString().slice(0, 7);
       setSelectedMonth(initialMonth);
       setLoading(false);
     };
