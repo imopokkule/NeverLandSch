@@ -24,15 +24,44 @@ export default function GmStatsPage() {
     const load = async () => {
       setLoading(true);
 
-      // 「終了済み」ボタンで集計した月別カウントを取得
-      const { data } = await supabase
+      // ① 「終了済み」で記録した完了済みカウントを取得
+      const { data: statsData } = await supabase
         .from("gm_monthly_stats")
         .select("gm_id, gm_name, count")
         .eq("month", month);
 
-      if (!data) { setLoading(false); return; }
+      // ② 現在も一覧に残っているアクティブセッションを取得
+      const { data: activeData } = await supabase
+        .from("events")
+        .select("gm_id, gm_name, creator_name, creator_id")
+        .not("discord_channel_id", "is", null)
+        .like("event_date", `${month}%`);
 
-      const sorted = [...data]
+      // ① + ② をマージ（完了済み + アクティブ）
+      const countMap = new Map<string, { gm_id: string | null; count: number }>();
+
+      for (const s of statsData ?? []) {
+        const prev = countMap.get(s.gm_name);
+        countMap.set(s.gm_name, {
+          gm_id: prev?.gm_id ?? s.gm_id,
+          count: (prev?.count ?? 0) + s.count,
+        });
+      }
+
+      for (const ev of activeData ?? []) {
+        const name = ev.gm_name || ev.creator_name;
+        if (!name) continue;
+        const prev = countMap.get(name);
+        countMap.set(name, {
+          gm_id: prev?.gm_id ?? ev.gm_id ?? ev.creator_id,
+          count: (prev?.count ?? 0) + 1,
+        });
+      }
+
+      if (countMap.size === 0) { setLoading(false); return; }
+
+      const sorted = Array.from(countMap.entries())
+        .map(([gm_name, { gm_id, count }]) => ({ gm_id, gm_name, count }))
         .sort((a, b) => b.count - a.count);
 
       setStats(sorted);
