@@ -21,6 +21,7 @@ function defaultAvatarUrl(userId: string): string {
 }
 
 type DiscordMessage = {
+  id: string;
   author: { id: string };
   content: string;
   embeds: Array<{
@@ -29,6 +30,22 @@ type DiscordMessage = {
     fields?: Array<{ name: string; value: string }>;
   }>;
 };
+
+// メッセージへのリアクションユーザー ID 一覧を取得（ボット除外）
+async function fetchReactionUsers(
+  token: string,
+  channelId: string,
+  messageId: string,
+  emoji: string
+): Promise<string[]> {
+  const res = await fetch(
+    `${DISCORD_API}/channels/${channelId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}?limit=100`,
+    { headers: { Authorization: `Bot ${token}` } }
+  );
+  if (!res.ok) return [];
+  const users: Array<{ id: string; bot?: boolean }> = await res.json();
+  return users.filter((u) => !u.bot).map((u) => u.id);
+}
 
 // Discord表示名からユーザー情報を検索
 async function searchMember(
@@ -172,7 +189,44 @@ async function fetchSessionInfo(
       m.author.id === TRPG_BOT_ID &&
       m.embeds.some((e) => (e.title ?? "").includes("卓が確定しました"))
   );
-  if (!confirmMsg) return null;
+
+  // 確定メッセージがない場合は募集中メッセージの ✋ リアクション者を参加者として使用
+  if (!confirmMsg) {
+    const recruitMsg = messages.find(
+      (m) =>
+        m.author.id === TRPG_BOT_ID &&
+        m.embeds.some((e) => (e.title ?? "").includes("参加者募集中"))
+    );
+    if (!recruitMsg) return null;
+
+    const reactorIds = await fetchReactionUsers(token, channelId, recruitMsg.id, "✋");
+    if (reactorIds.length === 0) return null;
+
+    // id → {global_name} 逆引きマップ
+    const idToInfo = new Map<string, { global_name: string | null }>();
+    for (const info of memberMapping.values()) {
+      if (info.id) idToInfo.set(info.id, { global_name: info.global_name });
+    }
+
+    const participants: string[] = [];
+    for (const id of reactorIds) {
+      let displayName = id;
+      if (idToInfo.has(id)) {
+        displayName = idToInfo.get(id)!.global_name ?? id;
+      } else {
+        const memberRes = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${id}`, {
+          headers: { Authorization: `Bot ${token}` },
+        });
+        if (memberRes.ok) {
+          const member = await memberRes.json();
+          displayName = member.user?.global_name ?? member.user?.username ?? id;
+        }
+      }
+      participants.push(JSON.stringify({ discord_id: id, user_name: displayName, role: "pl" }));
+    }
+
+    return { gm_id: null, gm_name: null, gm_avatar: null, participants };
+  }
 
   const embed = confirmMsg.embeds.find((e) =>
     (e.title ?? "").includes("卓が確定しました")
