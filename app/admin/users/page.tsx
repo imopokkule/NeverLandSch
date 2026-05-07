@@ -9,6 +9,10 @@ const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_DISCORD_IDS ?? "")
   .map((s) => s.trim())
   .filter(Boolean);
 
+function defaultAvatarUrl(userId: string): string {
+  return `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(userId) >> BigInt(22)) % 6}.png`;
+}
+
 type AppUser = {
   discord_id: string;
   user_name: string;
@@ -67,25 +71,24 @@ export default function AdminUsersPage() {
           {users.map((u) => (
             <div
               key={u.discord_id}
-              className="flex items-center gap-4 p-4 rounded-xl"
+              onClick={() => router.push(`/schedule/${u.discord_id}`)}
+              className="flex items-center gap-4 p-4 rounded-xl cursor-pointer transition"
               style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#4ecdc4"}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#1e3d45"}
             >
-              {u.avatar_url ? (
-                <img src={u.avatar_url} alt="avatar" className="w-10 h-10 rounded-full flex-shrink-0" />
-              ) : (
-                <div
-                  className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold"
-                  style={{ backgroundColor: "#1e3d45", color: "#4ecdc4" }}
-                >
-                  {(u.user_name ?? "?")[0]}
-                </div>
-              )}
+              <img
+                src={u.avatar_url ?? defaultAvatarUrl(u.discord_id)}
+                alt="avatar"
+                className="w-10 h-10 rounded-full flex-shrink-0"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatarUrl(u.discord_id); }}
+              />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold truncate" style={{ color: "#e8f5f0" }}>
                   {u.user_name ?? "不明"}
                 </p>
                 <p className="text-xs" style={{ color: "#4ecdc4" }}>
-                  {u.discord_id}
+                  スケジュールを見る →
                 </p>
               </div>
             </div>

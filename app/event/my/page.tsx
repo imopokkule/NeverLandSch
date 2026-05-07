@@ -93,9 +93,24 @@ export default function MySessionsPage() {
 
   const userId = session.user?.id;
 
+  // participants は string（JSON.stringify済み）またはオブジェクトの混在があるため両形式でチェック
+  const isParticipant = (ev: Event, uid: string) =>
+    (ev.participants || []).some((p: unknown) => {
+      if (typeof p === "string") {
+        try { return JSON.parse(p).discord_id === uid; } catch { return false; }
+      }
+      return (p as { discord_id: string })?.discord_id === uid;
+    });
+
+  const getRole = (ev: Event, uid: string): "created" | "joined" | null => {
+    if (ev.creator_id === uid) return "created";
+    if (isParticipant(ev, uid)) return "joined";
+    return null;
+  };
+
   const filtered = events.filter((ev) => {
     if (filter === "created") return ev.creator_id === userId;
-    if (filter === "joined")  return ev.participants?.some(p => p.discord_id === userId);
+    if (filter === "joined")  return isParticipant(ev, userId!);
     return true;
   });
 
@@ -156,7 +171,7 @@ export default function MySessionsPage() {
                     >
                       {stripDatePrefix(ev.title)}
                     </h2>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className="text-xs px-2 py-0.5 rounded-full"
                         style={{
@@ -166,14 +181,23 @@ export default function MySessionsPage() {
                       >
                         {getStatusLabel(ev.status)}
                       </span>
+                      {(() => {
+                        const role = getRole(ev, userId!);
+                        if (role === "created") return (
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ color: "#4ecdc4", border: "1px solid #4ecdc4", fontWeight: 700 }}>
+                            作成済み
+                          </span>
+                        );
+                        if (role === "joined") return (
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ color: "#a8d8a8", border: "1px solid #a8d8a8", fontWeight: 700 }}>
+                            参加中
+                          </span>
+                        );
+                        return null;
+                      })()}
                       {ev.event_date && (
                         <span className="text-xs" style={{ color: "#9ec9b4" }}>
                           {ev.event_date}{ev.event_time ? ` ${ev.event_time}` : ""}
-                        </span>
-                      )}
-                      {ev.creator_id === userId && (
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ color: "#4ecdc4", border: "1px solid #4ecdc4" }}>
-                          作成者
                         </span>
                       )}
                     </div>
