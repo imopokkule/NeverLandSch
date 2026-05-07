@@ -38,6 +38,11 @@ export default function AdminUsersPage() {
       .then((r) => r.json())
       .then((data) => {
         setUsers(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        setUsers([]);
+      })
+      .finally(() => {
         setLoading(false);
       });
   }, [status, isAdmin, router]);
