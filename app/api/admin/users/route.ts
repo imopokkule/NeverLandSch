@@ -3,8 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { createClient } from "@supabase/supabase-js";
 
-const DISCORD_API = "https://discord.com/api/v10";
-
 const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_DISCORD_IDS ?? "")
   .split(",")
   .map((s) => s.trim())
@@ -56,29 +54,7 @@ export async function GET() {
       .map((u) => [u.discord_id, u.avatar_url as string])
   );
 
-  // app_users にアバターがないユーザーを Discord ギルドメンバー API で補完
-  const token = process.env.DISCORD_BOT_TOKEN;
-  const guildId = process.env.DISCORD_GUILD_ID;
-  if (token && guildId) {
-    const missingIds = ids.filter((id) => !avatarMap.has(id));
-    await Promise.all(
-      missingIds.map(async (id) => {
-        const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${id}`, {
-          headers: { Authorization: `Bot ${token}` },
-        });
-        if (!res.ok) return;
-        const member = await res.json();
-        const hash = member.avatar ?? member.user?.avatar;
-        avatarMap.set(
-          id,
-          hash
-            ? `https://cdn.discordapp.com/avatars/${id}/${hash}.png`
-            : defaultAvatarUrl(id)
-        );
-      })
-    );
-  }
-
+  // アバター未保存のユーザーはIDから計算したデフォルトアバターを使用（API呼び出し不要）
   const result = ids
     .filter((id) => userMap.has(id))
     .map((discord_id) => ({
