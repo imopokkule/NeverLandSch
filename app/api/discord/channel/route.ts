@@ -381,10 +381,10 @@ export async function GET() {
 
     const { data: existing } = await supabase
       .from("events")
-      .select("discord_channel_id, status, gm_id, creator_name, creator_image");
+      .select("discord_channel_id, status, gm_id, creator_name, creator_image, participants");
 
     const existingMap = new Map(
-      (existing ?? []).map((e: { discord_channel_id: string; status: string; gm_id: string | null; creator_name: string | null; creator_image: string | null }) => [
+      (existing ?? []).map((e: { discord_channel_id: string; status: string; gm_id: string | null; creator_name: string | null; creator_image: string | null; participants: unknown[] | null }) => [
         e.discord_channel_id,
         e,
       ])
@@ -432,34 +432,48 @@ export async function GET() {
       await supabase.from("events").delete().in("discord_channel_id", toDelete);
     }
 
-    // TRPGcalenderのGM/PL情報を取得（gm_idが未設定のセッションのみ）
+    // TRPGcalenderのGM/PL情報・参加者を同期
     const memberMapping = await fetchMemberMapping(token, guildId);
     const mappingDebug = Object.fromEntries(
       Array.from(memberMapping.entries()).map(([k, v]) => [k, { id: v.id, has_avatar: !!v.avatar_url, avatar_url: v.avatar_url, global_name: v.global_name }])
     );
     let participantCount = 0;
 
-    const noGmChannels = managed.filter((c) => {
+    // GM未設定 または 参加者未設定のチャンネルを同期対象にする
+    const syncTargetChannels = managed.filter((c) => {
       const ev = existingMap.get(c.id);
-      return !ev || !ev.gm_id || !ev.creator_name || !ev.creator_image;
+      if (!ev) return true;
+      const hasParticipants = Array.isArray(ev.participants) && ev.participants.length > 0;
+      const hasGmInfo = !!ev.gm_id && !!ev.creator_name && !!ev.creator_image;
+      return !hasParticipants || !hasGmInfo;
     });
 
-    for (const ch of noGmChannels) {
+    for (const ch of syncTargetChannels) {
+      const ev = existingMap.get(ch.id);
+      const hasGmInfo = !!ev?.gm_id && !!ev?.creator_name && !!ev?.creator_image;
+
       const info = await fetchSessionInfo(token, guildId, ch.id, memberMapping);
       if (!info) continue;
-      if (info.gm_name || info.participants.length > 0) {
-        // GM/PL情報を更新
-        await supabase
-          .from("events")
-          .update({
-            gm_id: info.gm_id,
-            gm_name: info.gm_name,
-            ...(info.participants.length > 0 ? { participants: info.participants } : {}),
-          })
-          .eq("discord_channel_id", ch.id);
 
-        // creator未設定の場合のみ名前・IDをセット
-        if (info.gm_name) {
+      if (info.participants.length > 0 || info.gm_name) {
+        // 参加者を更新（常に最新リアクション・メンションで上書き）
+        if (info.participants.length > 0) {
+          await supabase
+            .from("events")
+            .update({ participants: info.participants })
+            .eq("discord_channel_id", ch.id);
+        }
+
+        // GM情報は未設定の場合のみ更新
+        if (!hasGmInfo && info.gm_name) {
+          await supabase
+            .from("events")
+            .update({
+              gm_id: info.gm_id,
+              gm_name: info.gm_name,
+            })
+            .eq("discord_channel_id", ch.id);
+
           await supabase
             .from("events")
             .update({
@@ -469,7 +483,6 @@ export async function GET() {
             .eq("discord_channel_id", ch.id)
             .is("creator_name", null);
 
-          // creator_imageが未設定の場合はアバターを個別に更新
           if (info.gm_avatar) {
             await supabase
               .from("events")
