@@ -38,10 +38,12 @@ export async function POST(req: Request) {
     }).catch(() => {});
   }
 
-  // DB にアーカイブ（削除せず discord_channel_id を null にして月を確定させる）
+  // ステータスが closed_ でなければ closed_trpg に変更してアーカイブ
+  const archivedStatus = event.status?.startsWith("closed_") ? event.status : "closed_trpg";
   await supabase.from("events").update({
     discord_channel_id: null,
     month: countMonth,
+    status: archivedStatus,
   }).eq("id", eventId);
 
   return NextResponse.json({ success: true, month: countMonth });

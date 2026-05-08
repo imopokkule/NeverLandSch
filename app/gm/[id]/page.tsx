@@ -92,7 +92,9 @@ export default function GmSessionsPage() {
           .select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image, month, gm_id, creator_id")
           .or(`gm_id.eq.${rawId},creator_id.eq.${rawId}`);
         allEvents = (byId ?? []).filter(
-          (e) => e.discord_channel_id !== null || (e.status && e.status.startsWith("closed_"))
+          (e) => e.discord_channel_id !== null
+            || e.status?.startsWith("closed_")
+            || (e.discord_channel_id === null && !!e.month)
         );
         const nameFromData = allEvents.find((e) => e.gm_name)?.gm_name
           || allEvents.find((e) => e.creator_name)?.creator_name
