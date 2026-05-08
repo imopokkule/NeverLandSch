@@ -12,17 +12,18 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // app_users から現在のusernameを取得
-  const { data: appUser } = await supabase
-    .from("app_users")
+  // schedules テーブルから現在のusernameを取得（最新のレコードを使用）
+  const { data: scheduleRows } = await supabase
+    .from("schedules")
     .select("user_name")
     .eq("discord_id", discord_id)
-    .maybeSingle();
+    .not("user_name", "is", null)
+    .limit(1);
 
-  if (!appUser?.user_name) {
-    return NextResponse.json({ error: "User not found in app_users" }, { status: 404 });
+  const correctName = scheduleRows?.[0]?.user_name;
+  if (!correctName) {
+    return NextResponse.json({ error: "User not found in schedules" }, { status: 404 });
   }
-  const correctName = appUser.user_name;
 
   // events の gm_id が一致するもののgm_nameを更新
   const { data: updatedGm, error: e1 } = await supabase
