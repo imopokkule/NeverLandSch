@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// Vercel Cron: 毎月1日 00:00 UTC に実行（vercel.json で設定済み）
 export async function GET(req: NextRequest) {
-  // Vercel Cron は Authorization: Bearer <CRON_SECRET> ヘッダーを付与する
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -13,29 +13,39 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 前月の年月を計算
+  // 前月の年月を計算（例: 5/1実行 → "2026-04"）
   const now = new Date();
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevMonthStr = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}`;
+  const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
 
-  // 前月の終了済みセッション（discord_channel_id = null のアーカイブ済み）を削除
-  const { data: deleted, error } = await supabase
+  // ① event_date が前月のセッションを削除
+  const { data: deletedByDate, error: e1 } = await supabase
     .from("events")
     .delete()
-    .in("status", ["closed_trpg", "closed_murder"])
-    .is("discord_channel_id", null)
-    .like("event_date", `${prevMonthStr}%`)
+    .like("event_date", `${prevMonth}%`)
     .select("id, title");
 
-  if (error) {
-    console.error("Cleanup error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  // ② event_date 未設定で month が前月のセッションを削除（undated アーカイブ）
+  const { data: deletedByMonth, error: e2 } = await supabase
+    .from("events")
+    .delete()
+    .eq("month", prevMonth)
+    .is("event_date", null)
+    .select("id, title");
+
+  // ③ gm_monthly_stats の前月分を削除
+  const { error: e3 } = await supabase
+    .from("gm_monthly_stats")
+    .delete()
+    .eq("month", prevMonth);
+
+  const errors = [e1, e2, e3].filter(Boolean);
+  if (errors.length > 0) {
+    console.error("Cleanup errors:", errors);
+    return NextResponse.json({ error: "Partial failure", details: errors }, { status: 500 });
   }
 
-  console.log(`🗑 Cleaned up ${deleted?.length ?? 0} archived sessions from ${prevMonthStr}`);
-  return NextResponse.json({
-    month: prevMonthStr,
-    deleted: deleted?.length ?? 0,
-    titles: deleted?.map((e) => e.title) ?? [],
-  });
+  const totalDeleted = (deletedByDate?.length ?? 0) + (deletedByMonth?.length ?? 0);
+  console.log(`Cleanup complete: ${totalDeleted} sessions deleted for ${prevMonth}`);
+  return NextResponse.json({ success: true, month: prevMonth, deleted: totalDeleted });
 }

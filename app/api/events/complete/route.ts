@@ -23,36 +23,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  // カウント対象の月（event_date優先、なければevent.month、なければ現在月）
+  // 帰属月（event_date優先、なければevent.month、なければ現在月）
   const countMonth =
     event.event_date?.slice(0, 7) ||
     event.month ||
     new Date().toISOString().slice(0, 7);
-
-  const gmName = event.gm_name || event.creator_name;
-  const gmId   = event.gm_id   || event.creator_id;
-
-  // GM が特定できる場合のみカウントをインクリメント
-  if (gmName) {
-    const { data: existing } = await supabase
-      .from("gm_monthly_stats")
-      .select("count")
-      .eq("gm_name", gmName)
-      .eq("month", countMonth)
-      .maybeSingle();
-
-    await supabase
-      .from("gm_monthly_stats")
-      .upsert(
-        {
-          gm_name: gmName,
-          gm_id: gmId ?? null,
-          month: countMonth,
-          count: (existing?.count ?? 0) + 1,
-        },
-        { onConflict: "gm_name,month" }
-      );
-  }
 
   // Discord チャンネルを削除
   const token = process.env.DISCORD_BOT_TOKEN;
@@ -63,8 +38,11 @@ export async function POST(req: Request) {
     }).catch(() => {});
   }
 
-  // DB からセッションを削除
-  await supabase.from("events").delete().eq("id", eventId);
+  // DB にアーカイブ（削除せず discord_channel_id を null にして月を確定させる）
+  await supabase.from("events").update({
+    discord_channel_id: null,
+    month: countMonth,
+  }).eq("id", eventId);
 
-  return NextResponse.json({ success: true, month: countMonth, gmName });
+  return NextResponse.json({ success: true, month: countMonth });
 }

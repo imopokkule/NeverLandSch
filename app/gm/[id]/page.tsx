@@ -84,13 +84,15 @@ export default function GmSessionsPage() {
       let allEvents: Event[] = [];
 
       if (isDiscordId) {
-        // Discord ID で検索
+        // Discord ID で検索（アクティブ＋アーカイブ済み両方）
         const { data: byId } = await supabase
           .from("events")
           .select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image, gm_id, creator_id")
-          .not("discord_channel_id", "is", null)
           .or(`gm_id.eq.${rawId},creator_id.eq.${rawId}`);
-        allEvents = byId ?? [];
+        // アクティブ or 終了済みのみ（孤立した削除済みエントリを除外）
+        allEvents = (byId ?? []).filter(
+          (e) => e.discord_channel_id !== null || (e.status && e.status.startsWith("closed_"))
+        );
 
         // gm_name を確定
         const nameFromData = allEvents.find((e) => e.gm_name)?.gm_name
@@ -100,10 +102,13 @@ export default function GmSessionsPage() {
       } else {
         // 名前で検索（gm_name または creator_name）
         const [{ data: byGm }, { data: byCreator }] = await Promise.all([
-          supabase.from("events").select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image").not("discord_channel_id", "is", null).eq("gm_name", decodedName),
-          supabase.from("events").select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image").not("discord_channel_id", "is", null).eq("creator_name", decodedName).is("gm_name", null),
+          supabase.from("events").select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image").eq("gm_name", decodedName),
+          supabase.from("events").select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image").eq("creator_name", decodedName).is("gm_name", null),
         ]);
-        allEvents = [...(byGm ?? []), ...(byCreator ?? [])];
+        const combined = [...(byGm ?? []), ...(byCreator ?? [])];
+        allEvents = combined.filter(
+          (e) => e.discord_channel_id !== null || (e.status && e.status.startsWith("closed_"))
+        );
         setGmName(decodedName);
       }
 

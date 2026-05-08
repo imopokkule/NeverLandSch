@@ -28,53 +28,40 @@ export default function GmStatsPage() {
       setLoading(true);
 
       const currentMonth = new Date().toISOString().slice(0, 7);
-      // gm_id があればそれをキーに、なければ名前をキーにして同一ユーザーの重複を防ぐ
       type Entry = { gm_id: string | null; gm_name: string; count: number; undatedCount: number };
       const countMap = new Map<string, Entry>();
       const getKey = (gm_id: string | null | undefined, gm_name: string) => gm_id ?? gm_name;
 
-      // ① 完了済みカウント（gm_monthly_stats）
-      const { data: statsData } = await supabase
-        .from("gm_monthly_stats")
-        .select("gm_id, gm_name, count")
-        .eq("month", month);
+      // events テーブルから直接集計（アクティブ＋アーカイブ済み両方）
+      const { data: allEvents } = await supabase
+        .from("events")
+        .select("gm_id, gm_name, creator_name, creator_id, event_date, month, discord_channel_id")
+        .or("gm_name.not.is.null,creator_name.not.is.null");
 
-      for (const s of statsData ?? []) {
-        const key = getKey(s.gm_id, s.gm_name);
+      for (const ev of allEvents ?? []) {
+        const name = ev.gm_name || ev.creator_name;
+        if (!name) continue;
+
+        const effectiveMonth = ev.event_date?.slice(0, 7) || ev.month || null;
+        const isUndated = !ev.event_date;
+        const isActive = !!ev.discord_channel_id;
+
+        // 対象月に含めるか判定
+        const matchesMonth = effectiveMonth === month;
+        // 日程未登録かつ月未確定のアクティブセッションは当月以降の表示のみに含める
+        const isUndatedActive = isUndated && !ev.month && isActive && month >= currentMonth;
+
+        if (!matchesMonth && !isUndatedActive) continue;
+
+        const evId = ev.gm_id ?? ev.creator_id;
+        const key = getKey(evId, name);
         const prev = countMap.get(key);
         countMap.set(key, {
-          gm_id: prev?.gm_id ?? s.gm_id,
-          gm_name: prev?.gm_name ?? s.gm_name,
-          count: (prev?.count ?? 0) + s.count,
-          undatedCount: prev?.undatedCount ?? 0,
+          gm_id: prev?.gm_id ?? evId ?? null,
+          gm_name: prev?.gm_name ?? name,
+          count: (prev?.count ?? 0) + 1,
+          undatedCount: (prev?.undatedCount ?? 0) + (isUndatedActive ? 1 : 0),
         });
-      }
-
-      // ② 当月以降はアクティブセッションも集計（翌月以降も未完了セッションを含める）
-      if (month >= currentMonth) {
-        const { data: activeData } = await supabase
-          .from("events")
-          .select("gm_id, gm_name, creator_name, creator_id, status, event_date")
-          .not("discord_channel_id", "is", null)
-          .or("gm_name.not.is.null,creator_name.not.is.null");
-
-        for (const ev of activeData ?? []) {
-          const name = ev.gm_name || ev.creator_name;
-          const evId = ev.gm_id ?? ev.creator_id;
-          if (!name) continue;
-          const isUndated = !ev.event_date;
-          const isThisMonth = ev.event_date?.startsWith(month) ?? false;
-          // 当月の開催日があるか、日程未登録のみカウント
-          if (!isThisMonth && !isUndated) continue;
-          const key = getKey(evId, name);
-          const prev = countMap.get(key);
-          countMap.set(key, {
-            gm_id: prev?.gm_id ?? evId ?? null,
-            gm_name: prev?.gm_name ?? name,
-            count: (prev?.count ?? 0) + 1,
-            undatedCount: (prev?.undatedCount ?? 0) + (isUndated ? 1 : 0),
-          });
-        }
       }
 
       const sorted = Array.from(countMap.values())
