@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabase";
 
@@ -15,6 +15,7 @@ type Event = {
   gm_name: string | null;
   creator_name: string | null;
   creator_image: string | null;
+  month: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -43,21 +44,23 @@ function EventCard({ ev }: { ev: Event }) {
   return (
     <Link
       href={href}
-      className="block p-4 rounded-xl transition"
+      className="block p-5 rounded-xl transition"
       style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}
       onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#4ecdc4"}
       onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#1e3d45"}
     >
-      {ev.event_date && (
-        <div className="text-xs font-mono mb-1" style={{ color: "#4ecdc4" }}>
-          {ev.event_date.replace(/^(\d+)-(\d+)-(\d+)$/, "$2/$3")}
-          {ev.event_time && <span style={{ color: "#9ec9b4" }}> {ev.event_time}</span>}
+      <div className="space-y-1">
+        {ev.event_date ? (
+          <div className="text-xs font-mono" style={{ color: "#4ecdc4" }}>
+            {ev.event_date.replace(/^(\d+)-(\d+)-(\d+)$/, "$2/$3")}
+            {ev.event_time && <span style={{ color: "#9ec9b4" }}> {ev.event_time}</span>}
+          </div>
+        ) : (
+          <div className="text-xs" style={{ color: "#d8c840" }}>日程未定</div>
+        )}
+        <div className="text-base font-semibold leading-tight" style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif" }}>
+          {stripDatePrefix(ev.title)}
         </div>
-      )}
-      <div className="font-semibold" style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif" }}>
-        {stripDatePrefix(ev.title)}
-      </div>
-      <div className="mt-1">
         <span className="text-xs px-2 py-0.5 rounded-full" style={{ color, border: `1px solid ${color}` }}>
           {label}
         </span>
@@ -68,42 +71,37 @@ function EventCard({ ev }: { ev: Event }) {
 
 export default function GmSessionsPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const rawId = params.id as string;
+  const monthParam = searchParams.get("month");
 
   const [gmName, setGmName] = useState<string | null>(null);
-  const [datedEvents, setDatedEvents] = useState<Event[]>([]);
-  const [undatedConfirmed, setUndatedConfirmed] = useState<Event[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      // rawId が数値（Discord ID）かテキスト（名前）かを判定
       const isDiscordId = /^\d{10,}$/.test(rawId);
       const decodedName = decodeURIComponent(rawId);
 
       let allEvents: Event[] = [];
 
       if (isDiscordId) {
-        // Discord ID で検索（アクティブ＋アーカイブ済み両方）
         const { data: byId } = await supabase
           .from("events")
-          .select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image, gm_id, creator_id")
+          .select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image, month, gm_id, creator_id")
           .or(`gm_id.eq.${rawId},creator_id.eq.${rawId}`);
-        // アクティブ or 終了済みのみ（孤立した削除済みエントリを除外）
         allEvents = (byId ?? []).filter(
           (e) => e.discord_channel_id !== null || (e.status && e.status.startsWith("closed_"))
         );
-
-        // gm_name を確定
         const nameFromData = allEvents.find((e) => e.gm_name)?.gm_name
           || allEvents.find((e) => e.creator_name)?.creator_name
           || decodedName;
         setGmName(nameFromData);
       } else {
-        // 名前で検索（gm_name または creator_name）
         const [{ data: byGm }, { data: byCreator }] = await Promise.all([
-          supabase.from("events").select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image").eq("gm_name", decodedName),
-          supabase.from("events").select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image").eq("creator_name", decodedName).is("gm_name", null),
+          supabase.from("events").select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image, month").eq("gm_name", decodedName),
+          supabase.from("events").select("id, title, status, event_date, event_time, discord_channel_id, gm_name, creator_name, creator_image, month").eq("creator_name", decodedName).is("gm_name", null),
         ]);
         const combined = [...(byGm ?? []), ...(byCreator ?? [])];
         allEvents = combined.filter(
@@ -112,25 +110,31 @@ export default function GmSessionsPage() {
         setGmName(decodedName);
       }
 
-      // 分類
-      // ① 日程未定 + 立卓済み → 別枠
-      const undated = allEvents.filter((e) => e.status === "confirmed" && !e.event_date);
-      // ② それ以外（日程あり、または立卓済み以外）— 日程あり優先・日付昇順、日程なしは末尾
-      const dated = allEvents
-        .filter((e) => !(e.status === "confirmed" && !e.event_date))
-        .sort((a, b) => {
-          if (!a.event_date && !b.event_date) return 0;
-          if (!a.event_date) return 1;
-          if (!b.event_date) return -1;
-          return a.event_date.localeCompare(b.event_date);
+      // 月フィルター（monthParam がある場合は該当月のみ）
+      if (monthParam) {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        allEvents = allEvents.filter((e) => {
+          const effective = e.event_date?.slice(0, 7) || e.month || null;
+          if (effective === monthParam) return true;
+          // 日程未定かつ月未確定のアクティブセッションは当月以降のみ表示
+          if (!e.event_date && !e.month && e.discord_channel_id && monthParam >= currentMonth) return true;
+          return false;
         });
+      }
 
-      setDatedEvents(dated);
-      setUndatedConfirmed(undated);
+      // 日付昇順、日程未定は末尾
+      allEvents.sort((a, b) => {
+        if (!a.event_date && !b.event_date) return 0;
+        if (!a.event_date) return 1;
+        if (!b.event_date) return -1;
+        return a.event_date.localeCompare(b.event_date);
+      });
+
+      setEvents(allEvents);
       setLoading(false);
     };
     load();
-  }, [rawId]);
+  }, [rawId, monthParam]);
 
   if (loading) {
     return (
@@ -140,50 +144,44 @@ export default function GmSessionsPage() {
     );
   }
 
+  const monthLabel = monthParam
+    ? `${monthParam.slice(0, 4)}年${monthParam.slice(5, 7)}月`
+    : null;
+
   return (
     <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0a1a1e" }}>
       <div className="max-w-3xl mx-auto space-y-8">
 
         {/* ヘッダー */}
         <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1e3d45" }}>
-          <p className="text-xs tracking-widest" style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}>GM Sessions</p>
+          <Link href="/event/gm-stats" className="text-xs tracking-widest hover:opacity-70 transition" style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}>
+            ← GM Stats
+          </Link>
           <h1 className="text-3xl font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
             {gmName ?? "..."}
           </h1>
-          <p className="text-sm" style={{ color: "#9ec9b4" }}>
-            このGMが担当しているセッション一覧です。
-          </p>
+          {monthLabel && (
+            <p className="text-sm" style={{ color: "#9ec9b4" }}>
+              {monthLabel}のセッション一覧
+            </p>
+          )}
         </div>
 
-        {/* 日程未定の立卓済みセクション */}
-        {undatedConfirmed.length > 0 && (
+        {/* セッション一覧 */}
+        {events.length > 0 ? (
           <div className="space-y-3">
-            <h2 className="text-sm font-bold tracking-widest" style={{ color: "#d8c840", fontFamily: "'Cinzel', serif" }}>
-              立卓済み（日程未定） — {undatedConfirmed.length}件
+            <h2 className="text-xs font-bold tracking-widest" style={{ color: "#4ecdc4", fontFamily: "'Cinzel', serif" }}>
+              Sessions — {events.length}件
             </h2>
             <div className="space-y-2">
-              {undatedConfirmed.map((ev) => (
+              {events.map((ev) => (
                 <EventCard key={ev.id} ev={ev} />
               ))}
             </div>
           </div>
-        )}
-
-        {/* 日程あり・その他セクション */}
-        {datedEvents.length > 0 ? (
-          <div className="space-y-3">
-            <h2 className="text-sm font-bold tracking-widest" style={{ color: "#4ecdc4", fontFamily: "'Cinzel', serif" }}>
-              セッション一覧 — {datedEvents.length}件
-            </h2>
-            <div className="space-y-2">
-              {datedEvents.map((ev) => (
-                <EventCard key={ev.id} ev={ev} />
-              ))}
-            </div>
-          </div>
-        ) : undatedConfirmed.length === 0 ? (
+        ) : (
           <p className="text-center py-12" style={{ color: "#9ec9b4" }}>セッションがありません</p>
-        ) : null}
+        )}
       </div>
     </main>
   );
