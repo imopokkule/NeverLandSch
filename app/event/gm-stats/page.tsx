@@ -56,11 +56,13 @@ export default function GmStatsPage() {
         const evId = ev.gm_id ?? ev.creator_id;
         const key = getKey(evId, name);
         const prev = countMap.get(key);
+        // event_date が未設定なら日程未定（month フィールドの有無に関わらず）
+        const countsAsUndated = isUndated && (matchesMonth || isUndatedActive);
         countMap.set(key, {
           gm_id: prev?.gm_id ?? evId ?? null,
           gm_name: prev?.gm_name ?? name,
           count: (prev?.count ?? 0) + 1,
-          undatedCount: (prev?.undatedCount ?? 0) + (isUndatedActive ? 1 : 0),
+          undatedCount: (prev?.undatedCount ?? 0) + (countsAsUndated ? 1 : 0),
         });
       }
 
