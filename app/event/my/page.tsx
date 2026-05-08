@@ -62,6 +62,7 @@ export default function MySessionsPage() {
       const { data: all } = await supabase
         .from("events")
         .select("*")
+        .not("discord_channel_id", "is", null)
         .order("event_date", { ascending: true, nullsFirst: false });
 
       // participants は string（JSON.stringify済み）またはオブジェクトの混在があるため
