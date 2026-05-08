@@ -23,10 +23,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  // カウント対象の月（セッションの開催月 or 現在月）
+  // カウント対象の月（event_date優先、なければevent.month、なければ現在月）
   const countMonth =
-    event.month ||
     event.event_date?.slice(0, 7) ||
+    event.month ||
     new Date().toISOString().slice(0, 7);
 
   const gmName = event.gm_name || event.creator_name;

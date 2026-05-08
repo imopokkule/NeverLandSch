@@ -28,7 +28,10 @@ export default function GmStatsPage() {
       setLoading(true);
 
       const currentMonth = new Date().toISOString().slice(0, 7);
-      const countMap = new Map<string, { gm_id: string | null; count: number; undatedCount: number }>();
+      // gm_id があればそれをキーに、なければ名前をキーにして同一ユーザーの重複を防ぐ
+      type Entry = { gm_id: string | null; gm_name: string; count: number; undatedCount: number };
+      const countMap = new Map<string, Entry>();
+      const getKey = (gm_id: string | null | undefined, gm_name: string) => gm_id ?? gm_name;
 
       // ① 完了済みカウント（gm_monthly_stats）
       const { data: statsData } = await supabase
@@ -37,9 +40,11 @@ export default function GmStatsPage() {
         .eq("month", month);
 
       for (const s of statsData ?? []) {
-        const prev = countMap.get(s.gm_name);
-        countMap.set(s.gm_name, {
+        const key = getKey(s.gm_id, s.gm_name);
+        const prev = countMap.get(key);
+        countMap.set(key, {
           gm_id: prev?.gm_id ?? s.gm_id,
+          gm_name: prev?.gm_name ?? s.gm_name,
           count: (prev?.count ?? 0) + s.count,
           undatedCount: prev?.undatedCount ?? 0,
         });
@@ -55,22 +60,24 @@ export default function GmStatsPage() {
 
         for (const ev of activeData ?? []) {
           const name = ev.gm_name || ev.creator_name;
+          const evId = ev.gm_id ?? ev.creator_id;
           if (!name) continue;
           const isUndated = !ev.event_date;
           const isThisMonth = ev.event_date?.startsWith(month) ?? false;
           // 当月の開催日があるか、日程未登録のみカウント
           if (!isThisMonth && !isUndated) continue;
-          const prev = countMap.get(name);
-          countMap.set(name, {
-            gm_id: prev?.gm_id ?? ev.gm_id ?? ev.creator_id,
+          const key = getKey(evId, name);
+          const prev = countMap.get(key);
+          countMap.set(key, {
+            gm_id: prev?.gm_id ?? evId ?? null,
+            gm_name: prev?.gm_name ?? name,
             count: (prev?.count ?? 0) + 1,
             undatedCount: (prev?.undatedCount ?? 0) + (isUndated ? 1 : 0),
           });
         }
       }
 
-      const sorted = Array.from(countMap.entries())
-        .map(([gm_name, { gm_id, count, undatedCount }]) => ({ gm_id, gm_name, count, undatedCount }))
+      const sorted = Array.from(countMap.values())
         .sort((a, b) => b.count - a.count);
 
       setStats(sorted);
