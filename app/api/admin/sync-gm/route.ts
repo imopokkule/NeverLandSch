@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     .select("id");
 
   // ③ gm_name が一致するが gm_id が未設定のものに gm_id を付与
-  const { data: r3 } = await supabase
+  const { data: r3, error: e3 } = await supabase
     .from("events").update({ gm_id: discord_id, creator_id: discord_id })
     .eq("gm_name", targetName).is("gm_id", null)
     .select("id");
@@ -73,6 +73,7 @@ export async function POST(req: Request) {
     fixedGmName: r1?.length ?? 0,
     fixedCreatorName: r2?.length ?? 0,
     addedGmId: r3?.length ?? 0,
+    addedGmIdError: e3 ? e3.message : null,
     assignedMonth: r4count,
   });
 }
