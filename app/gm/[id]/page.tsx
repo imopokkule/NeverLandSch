@@ -65,7 +65,7 @@ function EventCard({ ev }: { ev: Event }) {
           <span className="text-xs px-2 py-0.5 rounded-full" style={{ color, border: `1px solid ${color}` }}>
             {label}
           </span>
-          {ev.status?.startsWith("closed_") && (
+          {!ev.discord_channel_id && (
             <span className="text-xs px-2 py-0.5 rounded-full" style={{ color: "#9ec9b4", border: "1px solid #9ec9b4" }}>
               終了済み
             </span>
