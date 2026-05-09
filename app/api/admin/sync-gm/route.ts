@@ -20,14 +20,15 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/admin/sync-gm
-// body: { discord_id, gm_name, month }
+// body: { discord_id, month? }
 //   discord_id: 正しいDiscord ID
-//   gm_name:    統一したい名前
 //   month:      null月の完了セッションに割り当てる月（省略可）
+//
+// correctName は schedules テーブルから自動取得（リクエストボディの文字コード問題を回避）
 export async function POST(req: Request) {
-  const { discord_id, gm_name: targetName, month: targetMonth } = await req.json();
-  if (!discord_id || !targetName) {
-    return NextResponse.json({ error: "discord_id and gm_name required" }, { status: 400 });
+  const { discord_id, month: targetMonth } = await req.json();
+  if (!discord_id) {
+    return NextResponse.json({ error: "discord_id required" }, { status: 400 });
   }
 
   const supabase = createClient(
@@ -35,26 +36,35 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // ① gm_id が一致するものの gm_name を統一
+  // schedules テーブルから正しい名前を取得
+  const { data: scheduleRows } = await supabase
+    .from("schedules")
+    .select("user_name")
+    .eq("discord_id", discord_id)
+    .not("user_name", "is", null)
+    .limit(1);
+
+  const correctName = scheduleRows?.[0]?.user_name;
+  if (!correctName) {
+    return NextResponse.json({ error: "User not found in schedules" }, { status: 404 });
+  }
+
+  // ① gm_id が一致するものの gm_name を統一（文字化けの修復も含む）
   const { data: r1 } = await supabase
-    .from("events").update({ gm_name: targetName })
-    .eq("gm_id", discord_id).neq("gm_name", targetName)
+    .from("events").update({ gm_name: correctName })
+    .eq("gm_id", discord_id).neq("gm_name", correctName)
     .select("id");
 
   // ② creator_id が一致するものの creator_name を統一
   const { data: r2 } = await supabase
-    .from("events").update({ creator_name: targetName })
-    .eq("creator_id", discord_id).neq("creator_name", targetName)
+    .from("events").update({ creator_name: correctName })
+    .eq("creator_id", discord_id).neq("creator_name", correctName)
     .select("id");
 
   // ③ gm_name が一致するが gm_id が未設定のものに gm_id を付与
-  // まず対象候補を確認
-  const { data: r3candidates } = await supabase
-    .from("events").select("id, gm_name, gm_id")
-    .is("gm_id", null).not("gm_name", "is", null);
   const { data: r3, error: e3 } = await supabase
     .from("events").update({ gm_id: discord_id, creator_id: discord_id })
-    .eq("gm_name", targetName).is("gm_id", null)
+    .eq("gm_name", correctName).is("gm_id", null)
     .select("id");
 
   // ④ gm_id が一致して month が null の完了済みセッションに月を付与
@@ -68,23 +78,16 @@ export async function POST(req: Request) {
   }
 
   // ⑤ gm_monthly_stats の古い名前エントリを削除（同IDで名前違いの重複を排除）
-  await supabase.from("gm_monthly_stats").delete().neq("gm_name", targetName).eq("gm_id", discord_id);
+  await supabase.from("gm_monthly_stats").delete().neq("gm_name", correctName).eq("gm_id", discord_id);
 
   return NextResponse.json({
     discord_id,
-    targetName,
-    targetNameHex: Buffer.from(targetName).toString("hex"),
+    correctName,
     targetMonth,
     fixedGmName: r1?.length ?? 0,
     fixedCreatorName: r2?.length ?? 0,
     addedGmId: r3?.length ?? 0,
     addedGmIdError: e3 ? e3.message : null,
-    r3candidates: (r3candidates ?? []).map(r => ({
-      id: r.id.slice(0, 8),
-      gm_name: r.gm_name,
-      gm_name_hex: Buffer.from(r.gm_name ?? "").toString("hex"),
-      gm_id: r.gm_id,
-    })),
     assignedMonth: r4count,
   });
 }
