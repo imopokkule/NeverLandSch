@@ -1,5 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+
+// GET /api/admin/sync-gm?name=おちゃ  → eventsテーブルでgm_name/creator_nameを検索
+export async function GET(req: NextRequest) {
+  const name = req.nextUrl.searchParams.get("name");
+  if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
+
+  const supabase = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const [{ data: byGm }, { data: byCreator }] = await Promise.all([
+    supabase.from("events").select("id, title, gm_id, gm_name, creator_id, creator_name, status, event_date, month").ilike("gm_name", `%${name}%`),
+    supabase.from("events").select("id, title, gm_id, gm_name, creator_id, creator_name, status, event_date, month").ilike("creator_name", `%${name}%`),
+  ]);
+
+  return NextResponse.json({ byGm: byGm ?? [], byCreator: byCreator ?? [] });
+}
 
 // 管理用: app_users の現在のusernameを events の gm_name/creator_name に同期する
 // POST /api/admin/sync-gm  body: { discord_id: "..." }
