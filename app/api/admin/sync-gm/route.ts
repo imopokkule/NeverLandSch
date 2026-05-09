@@ -48,6 +48,10 @@ export async function POST(req: Request) {
     .select("id");
 
   // ③ gm_name が一致するが gm_id が未設定のものに gm_id を付与
+  // まず対象候補を確認
+  const { data: r3candidates } = await supabase
+    .from("events").select("id, gm_name, gm_id")
+    .is("gm_id", null).not("gm_name", "is", null);
   const { data: r3, error: e3 } = await supabase
     .from("events").update({ gm_id: discord_id, creator_id: discord_id })
     .eq("gm_name", targetName).is("gm_id", null)
@@ -69,11 +73,18 @@ export async function POST(req: Request) {
   return NextResponse.json({
     discord_id,
     targetName,
+    targetNameHex: Buffer.from(targetName).toString("hex"),
     targetMonth,
     fixedGmName: r1?.length ?? 0,
     fixedCreatorName: r2?.length ?? 0,
     addedGmId: r3?.length ?? 0,
     addedGmIdError: e3 ? e3.message : null,
+    r3candidates: (r3candidates ?? []).map(r => ({
+      id: r.id.slice(0, 8),
+      gm_name: r.gm_name,
+      gm_name_hex: Buffer.from(r.gm_name ?? "").toString("hex"),
+      gm_id: r.gm_id,
+    })),
     assignedMonth: r4count,
   });
 }
