@@ -19,54 +19,60 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ byGm: byGm ?? [], byCreator: byCreator ?? [] });
 }
 
-// 管理用: app_users の現在のusernameを events の gm_name/creator_name に同期する
-// POST /api/admin/sync-gm  body: { discord_id: "..." }
+// POST /api/admin/sync-gm
+// body: { discord_id, gm_name, month }
+//   discord_id: 正しいDiscord ID
+//   gm_name:    統一したい名前
+//   month:      null月の完了セッションに割り当てる月（省略可）
 export async function POST(req: Request) {
-  const { discord_id } = await req.json();
-  if (!discord_id) return NextResponse.json({ error: "discord_id required" }, { status: 400 });
+  const { discord_id, gm_name: targetName, month: targetMonth } = await req.json();
+  if (!discord_id || !targetName) {
+    return NextResponse.json({ error: "discord_id and gm_name required" }, { status: 400 });
+  }
 
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // schedules テーブルから現在のusernameを取得（最新のレコードを使用）
-  const { data: scheduleRows } = await supabase
-    .from("schedules")
-    .select("user_name")
-    .eq("discord_id", discord_id)
-    .not("user_name", "is", null)
-    .limit(1);
+  // ① gm_id が一致するものの gm_name を統一
+  const { data: r1 } = await supabase
+    .from("events").update({ gm_name: targetName })
+    .eq("gm_id", discord_id).neq("gm_name", targetName)
+    .select("id");
 
-  const correctName = scheduleRows?.[0]?.user_name;
-  if (!correctName) {
-    return NextResponse.json({ error: "User not found in schedules" }, { status: 404 });
+  // ② creator_id が一致するものの creator_name を統一
+  const { data: r2 } = await supabase
+    .from("events").update({ creator_name: targetName })
+    .eq("creator_id", discord_id).neq("creator_name", targetName)
+    .select("id");
+
+  // ③ gm_name が一致するが gm_id が未設定のものに gm_id を付与
+  const { data: r3 } = await supabase
+    .from("events").update({ gm_id: discord_id, creator_id: discord_id })
+    .eq("gm_name", targetName).is("gm_id", null)
+    .select("id");
+
+  // ④ gm_id が一致して month が null の完了済みセッションに月を付与
+  let r4count = 0;
+  if (targetMonth) {
+    const { data: r4 } = await supabase
+      .from("events").update({ month: targetMonth })
+      .eq("gm_id", discord_id).is("month", null).is("event_date", null)
+      .select("id");
+    r4count = r4?.length ?? 0;
   }
 
-  // events の gm_id が一致するもののgm_nameを更新
-  const { data: updatedGm, error: e1 } = await supabase
-    .from("events")
-    .update({ gm_name: correctName })
-    .eq("gm_id", discord_id)
-    .neq("gm_name", correctName)
-    .select("id, title, gm_name");
-
-  // events の creator_id が一致するもののcreator_nameを更新
-  const { data: updatedCreator, error: e2 } = await supabase
-    .from("events")
-    .update({ creator_name: correctName })
-    .eq("creator_id", discord_id)
-    .neq("creator_name", correctName)
-    .select("id, title, creator_name");
-
-  if (e1 || e2) {
-    return NextResponse.json({ error: "Update failed", details: [e1, e2] }, { status: 500 });
-  }
+  // ⑤ gm_monthly_stats の古い名前エントリを削除（同IDで名前違いの重複を排除）
+  await supabase.from("gm_monthly_stats").delete().neq("gm_name", targetName).eq("gm_id", discord_id);
 
   return NextResponse.json({
     discord_id,
-    correctName,
-    updatedGm: updatedGm?.length ?? 0,
-    updatedCreator: updatedCreator?.length ?? 0,
+    targetName,
+    targetMonth,
+    fixedGmName: r1?.length ?? 0,
+    fixedCreatorName: r2?.length ?? 0,
+    addedGmId: r3?.length ?? 0,
+    assignedMonth: r4count,
   });
 }
