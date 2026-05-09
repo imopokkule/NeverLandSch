@@ -7,6 +7,7 @@ import { supabase } from "@/app/lib/supabase";
 type GmStat = {
   gm_id: string | null;
   gm_name: string;
+  image: string | null;
   count: number;         // 合計（日程あり + 日程未定含む）
   undatedCount: number;  // 立卓済み かつ event_date 未設定の数
 };
@@ -28,14 +29,14 @@ export default function GmStatsPage() {
       setLoading(true);
 
       const currentMonth = new Date().toISOString().slice(0, 7);
-      type Entry = { gm_id: string | null; gm_name: string; count: number; undatedCount: number };
+      type Entry = { gm_id: string | null; gm_name: string; image: string | null; count: number; undatedCount: number };
       const countMap = new Map<string, Entry>();
       const getKey = (gm_id: string | null | undefined, gm_name: string) => gm_id ?? gm_name;
 
       // events テーブルから直接集計（アクティブ＋アーカイブ済み両方）
       const { data: allEvents } = await supabase
         .from("events")
-        .select("gm_id, gm_name, creator_name, creator_id, event_date, month, discord_channel_id")
+        .select("gm_id, gm_name, creator_name, creator_id, creator_image, event_date, month, discord_channel_id")
         .or("gm_name.not.is.null,creator_name.not.is.null");
 
       for (const ev of allEvents ?? []) {
@@ -61,6 +62,7 @@ export default function GmStatsPage() {
         countMap.set(key, {
           gm_id: prev?.gm_id ?? evId ?? null,
           gm_name: prev?.gm_name ?? name,
+          image: prev?.image ?? ev.creator_image ?? null,
           count: (prev?.count ?? 0) + 1,
           undatedCount: (prev?.undatedCount ?? 0) + (countsAsUndated ? 1 : 0),
         });
@@ -119,13 +121,20 @@ export default function GmStatsPage() {
                 onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#4ecdc4"}
                 onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#1e3d45"}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <span
-                    className="text-lg font-bold w-8 text-right"
+                    className="text-lg font-bold w-8 text-right shrink-0"
                     style={{ color: i === 0 ? "#f0c040" : i === 1 ? "#b0b8c8" : i === 2 ? "#cd7f32" : "#4ecdc4", fontFamily: "'Cinzel', serif" }}
                   >
                     {i + 1}
                   </span>
+                  {s.image ? (
+                    <img src={s.image} alt={s.gm_name} className="w-8 h-8 rounded-full shrink-0" style={{ border: "1px solid #1e3d45" }} />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold" style={{ backgroundColor: "#1e3d45", color: "#4ecdc4" }}>
+                      {s.gm_name.slice(0, 1)}
+                    </div>
+                  )}
                   <div>
                     <span className="text-base" style={{ color: "#e8f5f0" }}>{s.gm_name}</span>
                   </div>
