@@ -61,9 +61,16 @@ function EventCard({ ev }: { ev: Event }) {
         <div className="text-base font-semibold leading-tight" style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif" }}>
           {stripDatePrefix(ev.title)}
         </div>
-        <span className="text-xs px-2 py-0.5 rounded-full" style={{ color, border: `1px solid ${color}` }}>
-          {label}
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ color, border: `1px solid ${color}` }}>
+            {label}
+          </span>
+          {ev.status?.startsWith("closed_") && (
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ color: "#9ec9b4", border: "1px solid #9ec9b4" }}>
+              終了済み
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );
