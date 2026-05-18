@@ -15,8 +15,12 @@ function defaultAvatarUrl(userId: string): string {
 
 type AppUser = {
   discord_id: string;
-  user_name: string;
+  site_name: string;
+  discord_name: string | null;
+  display_name: string | null;
   avatar_url: string | null;
+  created_at: string | null;
+  isNew: boolean;
 };
 
 export default function AdminUsersPage() {
@@ -24,6 +28,7 @@ export default function AdminUsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const isAdmin =
     ADMIN_IDS.length > 0 && !!session?.user?.id && ADMIN_IDS.includes(session.user.id);
@@ -39,12 +44,8 @@ export default function AdminUsersPage() {
       .then((data) => {
         setUsers(Array.isArray(data) ? data : []);
       })
-      .catch(() => {
-        setUsers([]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .catch(() => setUsers([]))
+      .finally(() => setLoading(false));
   }, [status, isAdmin, router]);
 
   if (status === "loading" || (status === "authenticated" && loading)) {
@@ -56,6 +57,17 @@ export default function AdminUsersPage() {
   }
 
   if (!isAdmin) return null;
+
+  const filtered = search.trim()
+    ? users.filter((u) => {
+        const q = search.toLowerCase();
+        return (
+          u.site_name?.toLowerCase().includes(q) ||
+          u.discord_name?.toLowerCase().includes(q) ||
+          u.display_name?.toLowerCase().includes(q)
+        );
+      })
+    : users;
 
   return (
     <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0a1a1e" }}>
@@ -72,15 +84,42 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
+        {/* 検索 */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="名前で検索..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            style={{
+              backgroundColor: "#112428",
+              border: "1px solid #1e3d45",
+              color: "#e8f5f0",
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#4ecdc4")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "#1e3d45")}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-sm hover:opacity-70"
+              style={{ color: "#9ec9b4" }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
         <div className="space-y-2">
-          {users.map((u) => (
+          {filtered.map((u) => (
             <div
               key={u.discord_id}
               onClick={() => router.push(`/schedule/${u.discord_id}`)}
               className="flex items-center gap-4 p-4 rounded-xl cursor-pointer transition"
-              style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}
+              style={{ backgroundColor: "#112428", border: `1px solid ${u.isNew ? "#4ecdc4" : "#1e3d45"}` }}
               onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#4ecdc4"}
-              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#1e3d45"}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.borderColor = u.isNew ? "#4ecdc4" : "#1e3d45"}
             >
               <img
                 src={u.avatar_url ?? defaultAvatarUrl(u.discord_id)}
@@ -89,19 +128,38 @@ export default function AdminUsersPage() {
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatarUrl(u.discord_id); }}
               />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold truncate" style={{ color: "#e8f5f0" }}>
-                  {u.user_name ?? "不明"}
-                </p>
-                <p className="text-xs" style={{ color: "#4ecdc4" }}>
-                  スケジュールを見る →
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold" style={{ color: "#e8f5f0" }}>
+                    {u.site_name}
+                  </p>
+                  {u.isNew && (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-bold"
+                      style={{ backgroundColor: "#4ecdc4", color: "#0a1a1e" }}
+                    >
+                      NEW
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                  {u.discord_name && (
+                    <p className="text-xs" style={{ color: "#9ec9b4" }}>
+                      @{u.discord_name}
+                    </p>
+                  )}
+                  {u.display_name && u.display_name !== u.site_name && u.display_name !== u.discord_name && (
+                    <p className="text-xs" style={{ color: "#6bb8a0" }}>
+                      {u.display_name}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           ))}
 
-          {users.length === 0 && (
+          {filtered.length === 0 && (
             <p className="text-center py-12" style={{ color: "#9ec9b4" }}>
-              ユーザーがいません
+              {search ? "該当するユーザーが見つかりません" : "ユーザーがいません"}
             </p>
           )}
         </div>
