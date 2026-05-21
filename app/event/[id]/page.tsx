@@ -27,7 +27,7 @@ type User = {
   avatar_url?: string | null;
 };
 
-const STATUS_OPTIONS = [
+const FALLBACK_statusOptions = [
   { value: "recruiting", label: "募集中" },
   { value: "confirmed",  label: "立卓済み" },
   { value: "closed_trpg",    label: "〆済みTRPG" },
@@ -90,8 +90,18 @@ export default function EventDetailPage() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [editOpen, setEditOpen] = useState(false);
+  const [statusOptions, setStatusOptions] = useState(FALLBACK_statusOptions);
 
   const inputStyle = { backgroundColor: "#112428", border: "1px solid #1e3d45", color: "#e8f5f0" };
+
+  useEffect(() => {
+    fetch("/api/discord/categories")
+      .then((r) => r.json())
+      .then((opts: { value: string; label: string }[]) => {
+        if (opts.length > 0) setStatusOptions(opts);
+      })
+      .catch(() => {});
+  }, []);
 
   // イベント読み込み
   useEffect(() => {
@@ -303,7 +313,7 @@ export default function EventDetailPage() {
   );
 
   const statusColor = STATUS_COLORS[event.status] ?? "#9ec9b4";
-  const statusLabel = STATUS_OPTIONS.find((o) => o.value === event.status)?.label ?? event.status;
+  const statusLabel = statusOptions.find((o) => o.value === event.status)?.label ?? event.status;
 
   return (
     <main className="min-h-screen p-6 md:p-10" style={{ backgroundColor: "#0a1a1e", color: "#e8f5f0" }}>
@@ -501,7 +511,7 @@ export default function EventDetailPage() {
                     className="w-full p-3 rounded"
                     style={inputStyle}
                   >
-                    {STATUS_OPTIONS.map((o) => (
+                    {statusOptions.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
