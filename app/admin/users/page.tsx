@@ -152,6 +152,11 @@ export default function AdminUsersPage() {
                       {u.display_name}
                     </p>
                   )}
+                  {u.created_at && (
+                    <p className="text-xs" style={{ color: "#4a7a6a" }}>
+                      登録: {new Date(u.created_at).toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" })}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
