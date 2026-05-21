@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 const DISCORD_API = "https://discord.com/api/v10";
-const MONTHLY_PATTERN = /立卓済み[〈<].+月[〉>]/;
+// 立卓済み + 何か + 月 にマッチ（括弧の種類を問わない）
+const MONTHLY_PATTERN = /立卓済み.+月/;
 
 const CATEGORY_MAP: Record<string, string> = {
   recruiting: process.env.CATEGORY_RECRUITING ?? "",
@@ -17,7 +18,8 @@ const FIXED_LABELS: Record<string, string> = {
   closed_murder: "〆済みマダミス",
 };
 
-export async function GET() {
+export async function GET(req: Request) {
+  const debug = new URL(req.url).searchParams.get("debug") === "1";
   const token = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID;
 
@@ -30,6 +32,13 @@ export async function GET() {
 
   const channels: { id: string; type: number; name: string }[] = await res.json();
   const channelIds = new Set(channels.map((c) => c.id));
+
+  // デバッグ: カテゴリ（type=4）の一覧を返す
+  if (debug) {
+    return NextResponse.json(
+      channels.filter((c) => c.type === 4).map((c) => ({ id: c.id, name: c.name, matches: MONTHLY_PATTERN.test(c.name) }))
+    );
+  }
 
   const options: { value: string; label: string }[] = [];
 
