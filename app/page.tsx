@@ -21,6 +21,12 @@ const PAGES = [
     desc: "参加可否スケジュールを入力",
     tooltip: "各日程の参加可否（昼・夜・全日・不可）を登録できます",
   },
+  {
+    href: "/calendar",
+    label: "Calendar",
+    desc: "月ごとのセッションカレンダー",
+    tooltip: "日付ごとのセッションと参加可能メンバーを確認できます",
+  },
 ];
 
 export default function HomePage() {
