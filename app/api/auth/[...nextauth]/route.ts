@@ -34,17 +34,28 @@ export const authOptions: AuthOptions = {
             process.env.SUPABASE_URL!,
             process.env.SUPABASE_SERVICE_ROLE_KEY!
           );
-          await supabase.from("app_users").upsert(
-            {
-              discord_id: account.providerAccountId,
+          const now = new Date().toISOString();
+          const discord_id = account.providerAccountId;
+
+          // 初回ログイン時のみ INSERT（created_at を初回登録日として確定）
+          const { error: insertError } = await supabase.from("app_users").insert({
+            discord_id,
+            user_name: user.name,
+            avatar_url: user.image,
+            last_login: now,
+          });
+
+          if (insertError) {
+            // 重複（既存ユーザー）は user_name / avatar_url / last_login だけ更新
+            // created_at は一切触らない
+            await supabase.from("app_users").update({
               user_name: user.name,
               avatar_url: user.image,
-              last_login: new Date().toISOString(),
-            },
-            { onConflict: "discord_id" }
-          );
+              last_login: now,
+            }).eq("discord_id", discord_id);
+          }
         } catch (e) {
-          console.error("Failed to upsert app_users:", e);
+          console.error("Failed to update app_users:", e);
         }
       }
       return true;
