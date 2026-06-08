@@ -15,7 +15,6 @@ const NAV_ITEMS = [
   { label: "MY SESSIONS", href: "/event/my" },
   { label: "CREATE",      href: "/event/create" },
   { label: "SCHEDULE",    href: "/schedule" },
-  { label: "GM STATS",    href: "/event/gm-stats" },
 ];
 
 export default function Header() {
