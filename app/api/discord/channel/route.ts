@@ -416,7 +416,7 @@ export async function GET() {
     const channels: { id: string; type: number; name: string; parent_id: string | null }[] =
       await res.json();
 
-    const MONTHLY_PATTERN = /立卓済み[〈<].+月[〉>]/;
+    const MONTHLY_PATTERN = /立卓済み.+月/;
     const dynamicReverseMap: Record<string, string> = { ...REVERSE_MAP };
     for (const c of channels) {
       if (c.type === 4 && MONTHLY_PATTERN.test(c.name)) {
@@ -677,7 +677,20 @@ export async function POST(req: Request) {
     if (action === "update") {
       if (!channelId) return NextResponse.json({ error: "channelId required" }, { status: 400 });
 
-      const categoryId = CATEGORY_MAP[status] || undefined;
+      let categoryId: string | undefined = CATEGORY_MAP[status] || undefined;
+
+      // 月別カテゴリは CATEGORY_MAP にないので Discord から動的に検索
+      if (!categoryId) {
+        const guildChRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+          headers: { Authorization: `Bot ${token}` },
+        });
+        if (guildChRes.ok) {
+          const allCh: { id: string; type: number; name: string }[] = await guildChRes.json();
+          const match = allCh.find((c) => c.type === 4 && c.name === status);
+          if (match) categoryId = match.id;
+        }
+      }
+
       const body: Record<string, unknown> = { name: toChannelName(title) };
       if (categoryId) body.parent_id = categoryId;
 
