@@ -55,6 +55,12 @@ export default function DateDetailPage() {
     ? `${parseInt(date.slice(0, 4))}年${parseInt(date.slice(5, 7))}月${parseInt(date.slice(8, 10))}日`
     : "";
 
+  const fmtDate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const [y, mo, da] = date ? date.split("-").map(Number) : [0, 0, 0];
+  const prevDate = date ? fmtDate(new Date(y, mo - 1, da - 1)) : "";
+  const nextDate = date ? fmtDate(new Date(y, mo - 1, da + 1)) : "";
+
   useEffect(() => {
     if (!date || !month) return;
 
@@ -109,14 +115,32 @@ export default function DateDetailPage() {
       <div className="max-w-2xl mx-auto space-y-8">
 
         {/* Header */}
-        <div className="space-y-2 border-b pb-6" style={{ borderColor: "#1e3d45" }}>
-          <Link
-            href="/calendar"
-            className="text-xs tracking-widest hover:opacity-70 transition block mb-1"
-            style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}
-          >
-            ← Calendar
-          </Link>
+        <div className="space-y-3 border-b pb-6" style={{ borderColor: "#1e3d45" }}>
+          <div className="flex items-center justify-between">
+            <Link
+              href="/calendar"
+              className="text-xs tracking-widest hover:opacity-70 transition"
+              style={{ color: "#9ec9b4", fontFamily: "'Cinzel', serif" }}
+            >
+              ← Calendar
+            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/calendar/${prevDate}`}
+                className="px-4 py-1.5 rounded-lg text-sm font-bold hover:opacity-70 transition"
+                style={{ color: "#4ecdc4", border: "1px solid #1e3d45", backgroundColor: "#112428" }}
+              >
+                ‹ 前日
+              </Link>
+              <Link
+                href={`/calendar/${nextDate}`}
+                className="px-4 py-1.5 rounded-lg text-sm font-bold hover:opacity-70 transition"
+                style={{ color: "#4ecdc4", border: "1px solid #1e3d45", backgroundColor: "#112428" }}
+              >
+                翌日 ›
+              </Link>
+            </div>
+          </div>
           <h1 className="text-3xl font-bold tracking-widest" style={{ fontFamily: "'Cinzel', serif", color: "#4ecdc4" }}>
             {dateLabel}
           </h1>
