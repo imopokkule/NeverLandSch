@@ -11,13 +11,30 @@ export async function GET(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const [{ data: users }, { data: monthData }] = await Promise.all([
+  const [{ data: schedUsers }, { data: monthData }, { data: appUsers }] = await Promise.all([
     supabase.from("schedules").select("discord_id, user_name").not("user_name", "is", null),
     supabase.from("schedules").select("discord_id, data").eq("month", month),
+    supabase.from("app_users").select("discord_id, user_name"),
   ]);
 
+  const appNameMap = new Map<string, string>(
+    (appUsers ?? [])
+      .filter((u) => u.user_name)
+      .map((u) => [u.discord_id, u.user_name as string])
+  );
+
+  const isDiscordId = (name: string) => /^\d{15,20}$/.test(name);
+
+  const users = (schedUsers ?? []).map((u) => ({
+    discord_id: u.discord_id,
+    user_name:
+      !u.user_name || isDiscordId(u.user_name)
+        ? (appNameMap.get(u.discord_id) ?? u.user_name)
+        : u.user_name,
+  }));
+
   return NextResponse.json({
-    users: users ?? [],
+    users,
     monthData: monthData ?? [],
   });
 }
