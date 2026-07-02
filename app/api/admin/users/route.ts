@@ -57,8 +57,8 @@ export async function GET() {
   const guildId = process.env.DISCORD_GUILD_ID;
   const USERLIST_CHANNEL_ID = "1501747391462637659";
 
-  // ユーザーリストチャンネルに投稿したユーザーIDを取得（ページネーション対応）
-  const userListPosters = new Set<string>();
+  // ユーザーリストチャンネルでメンションされたユーザーIDを取得（ページネーション対応）
+  const userListMentioned = new Set<string>();
   if (token) {
     try {
       let before: string | undefined;
@@ -72,11 +72,13 @@ export async function GET() {
         });
         if (!msgRes.ok) break;
 
-        const messages: Array<{ id: string; author: { id: string; bot?: boolean } }> = await msgRes.json();
+        const messages: Array<{ id: string; mentions: Array<{ id: string }> }> = await msgRes.json();
         if (messages.length === 0) break;
 
         for (const msg of messages) {
-          if (!msg.author.bot) userListPosters.add(msg.author.id);
+          for (const mention of msg.mentions ?? []) {
+            userListMentioned.add(mention.id);
+          }
         }
 
         if (messages.length < 100) break;
@@ -143,7 +145,7 @@ export async function GET() {
         created_at,
         isNew,
         hasSchedule: true,
-        inUserListChannel: userListPosters.has(discord_id),
+        inUserListChannel: userListMentioned.has(discord_id),
       };
     })
     .sort((a, b) => {
