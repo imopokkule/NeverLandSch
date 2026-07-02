@@ -32,7 +32,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "no_schedule" | "no_global_name" | "left_guild">("all");
+  const [filter, setFilter] = useState<"all" | "no_global_name" | "left_guild">("all");
 
   const isAdmin =
     ADMIN_IDS.length > 0 && !!session?.user?.id && ADMIN_IDS.includes(session.user.id);
@@ -68,7 +68,6 @@ export default function AdminUsersPage() {
   const leftGuildUsers = scheduleUsers.filter((u) => !u.inGuild);
 
   const baseList =
-    filter === "no_schedule"    ? notInChannelUsers :
     filter === "no_global_name" ? noGlobalNameUsers :
     filter === "left_guild"     ? leftGuildUsers :
     scheduleUsers;
@@ -95,7 +94,7 @@ export default function AdminUsersPage() {
             Users
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            全 {scheduleUsers.length} 人 / リスト未登録 {notInChannelUsers.length} 人 / 表示名未設定 {noGlobalNameUsers.length} 人 / 退出済み {leftGuildUsers.length} 人
+            全 {scheduleUsers.length} 人 / 表示名未設定 {noGlobalNameUsers.length} 人 / 退出済み {leftGuildUsers.length} 人
           </p>
         </div>
 
@@ -103,7 +102,6 @@ export default function AdminUsersPage() {
         <div className="flex flex-wrap gap-2">
           {([
             { key: "all",            label: `全員 (${scheduleUsers.length})` },
-            { key: "no_schedule",    label: `リスト未登録 (${notInChannelUsers.length})` },
             { key: "no_global_name", label: `表示名未設定 (${noGlobalNameUsers.length})` },
             { key: "left_guild",     label: `退出済み (${leftGuildUsers.length})` },
           ] as const).map(({ key, label }) => (
