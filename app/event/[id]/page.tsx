@@ -44,12 +44,12 @@ const STATUS_COLORS: Record<string, string> = {
 const getCellLabel = (v: number | null | undefined) =>
   v === 3 ? "◎" : v === 1 ? "〇" : v === 2 ? "△" : v === 0 ? "×" : "-";
 
-const getCellStyle = (v: number | null | undefined) => {
-  if (v === 3) return { backgroundColor: "#0a2818", color: "#4ef0a0", textShadow: "0 0 8px rgba(78,240,160,0.8)" };
-  if (v === 1) return { backgroundColor: "#201e08", color: "#e8d040", textShadow: "0 0 8px rgba(232,208,64,0.8)" };
-  if (v === 2) return { backgroundColor: "#061220", color: "#508cf0", textShadow: "0 0 8px rgba(80,140,240,0.8)" };
-  if (v === 0) return { backgroundColor: "#200606", color: "#f04848", textShadow: "0 0 8px rgba(240,72,72,0.8)" };
-  return       { backgroundColor: "#112428", color: "#4a6a60" };
+const getSymbolColor = (v: number | null | undefined): string => {
+  if (v === 3) return "#4ef0a0";
+  if (v === 1) return "#e8d040";
+  if (v === 2) return "#508cf0";
+  if (v === 0) return "#f04848";
+  return "#3a5560";
 };
 
 const LEGEND = [
@@ -457,32 +457,30 @@ export default function EventDetailPage() {
                         </div>
 
                         {/* 参加者ステータスチップ */}
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1px", width: "100%" }}>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px", width: "100%" }}>
                           {visibleP.map((u) => {
                             const v = u.data?.[String(day)];
-                            const s = getCellStyle(v);
+                            const symbolColor = getSymbolColor(v);
                             return (
                               <div
                                 key={u.discord_id}
                                 style={{
-                                  ...s,
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: "2px",
-                                  borderRadius: "3px",
-                                  padding: "0 3px",
-                                  fontSize: "9px",
-                                  lineHeight: "14px",
+                                  gap: "3px",
+                                  padding: "0 2px",
+                                  fontSize: "10px",
+                                  lineHeight: "15px",
                                   overflow: "hidden",
                                 }}
                               >
-                                <span style={{ fontWeight: "bold", flexShrink: 0 }}>{getCellLabel(v)}</span>
-                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.user_name}</span>
+                                <span style={{ color: symbolColor, fontWeight: "bold", flexShrink: 0, fontSize: "9px" }}>{getCellLabel(v)}</span>
+                                <span style={{ color: "#b8d8d0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.user_name}</span>
                               </div>
                             );
                           })}
                           {hiddenCount > 0 && (
-                            <div style={{ color: "#4a6a60", fontSize: "9px", lineHeight: "14px" }}>+{hiddenCount}人</div>
+                            <div style={{ color: "#4a7a6a", fontSize: "9px", lineHeight: "14px" }}>+{hiddenCount}人</div>
                           )}
                         </div>
                       </div>
@@ -491,11 +489,30 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
-              {/* ホバー中の日の参加状況パネル */}
-              {hoveredDay ? (
-                <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: "#0d1f24", border: "1px solid #2a5560" }}>
+              {/* 常時表示のヒント */}
+              <div className="rounded-xl px-4 py-3 text-xs text-center" style={{ backgroundColor: "#0d1f24", border: "1px dashed #2a5560", color: "#4a6a60" }}>
+                日付にマウスオーバーで判定と全参加者の状況を確認できます
+              </div>
+
+              {/* ホバーパネル（fixed - レイアウトに影響しない） */}
+              {hoveredDay && (
+                <div
+                  style={{
+                    position: "fixed",
+                    bottom: "24px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: "min(600px, 90vw)",
+                    zIndex: 50,
+                    backgroundColor: "#0d1f24",
+                    border: "1px solid #2a5560",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                  }}
+                >
                   {/* 日付 + 判定 */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mb-3">
                     <div className="text-sm font-bold" style={{ color: "#4ecdc4" }}>
                       {Number(selectedMonth.slice(0, 4))}年{Number(selectedMonth.slice(5, 7))}月{hoveredDay}日
                     </div>
@@ -513,24 +530,20 @@ export default function EventDetailPage() {
                   <div className="flex flex-wrap gap-2">
                     {participants.map((u) => {
                       const v = u.data?.[String(hoveredDay)];
-                      const s = getCellStyle(v);
+                      const symbolColor = getSymbolColor(v);
                       return (
                         <div
                           key={u.discord_id}
                           className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs"
-                          style={{ ...s, border: "1px solid #2a5560" }}
+                          style={{ backgroundColor: "#112428", border: `1px solid ${symbolColor}55` }}
                         >
                           {u.avatar_url && <img src={u.avatar_url} alt="" className="w-4 h-4 rounded-full" />}
-                          <span>{u.user_name}</span>
-                          <span className="font-bold">{getCellLabel(v)}</span>
+                          <span style={{ color: symbolColor, fontWeight: "bold" }}>{getCellLabel(v)}</span>
+                          <span style={{ color: "#e8f5f0" }}>{u.user_name}</span>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              ) : (
-                <div className="rounded-xl px-4 py-3 text-xs text-center" style={{ backgroundColor: "#0d1f24", border: "1px dashed #2a5560", color: "#4a6a60" }}>
-                  日付にマウスオーバーで判定と全参加者の状況を確認できます
                 </div>
               )}
             </div>
