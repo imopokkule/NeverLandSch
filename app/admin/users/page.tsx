@@ -23,6 +23,7 @@ type AppUser = {
   isNew: boolean;
   hasSchedule: boolean;
   inUserListChannel: boolean;
+  inGuild: boolean;
 };
 
 export default function AdminUsersPage() {
@@ -31,7 +32,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "no_schedule" | "no_global_name">("all");
+  const [filter, setFilter] = useState<"all" | "no_schedule" | "no_global_name" | "left_guild">("all");
 
   const isAdmin =
     ADMIN_IDS.length > 0 && !!session?.user?.id && ADMIN_IDS.includes(session.user.id);
@@ -64,10 +65,12 @@ export default function AdminUsersPage() {
   const scheduleUsers = users.filter((u) => u.hasSchedule);
   const notInChannelUsers = scheduleUsers.filter((u) => !u.inUserListChannel);
   const noGlobalNameUsers = scheduleUsers.filter((u) => !u.display_name);
+  const leftGuildUsers = scheduleUsers.filter((u) => !u.inGuild);
 
   const baseList =
-    filter === "no_schedule" ? notInChannelUsers :
+    filter === "no_schedule"    ? notInChannelUsers :
     filter === "no_global_name" ? noGlobalNameUsers :
+    filter === "left_guild"     ? leftGuildUsers :
     scheduleUsers;
 
   const filtered = search.trim()
@@ -92,7 +95,7 @@ export default function AdminUsersPage() {
             Users
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            全 {scheduleUsers.length} 人 / リスト未登録 {notInChannelUsers.length} 人 / 表示名未設定 {noGlobalNameUsers.length} 人
+            全 {scheduleUsers.length} 人 / リスト未登録 {notInChannelUsers.length} 人 / 表示名未設定 {noGlobalNameUsers.length} 人 / 退出済み {leftGuildUsers.length} 人
           </p>
         </div>
 
@@ -102,6 +105,7 @@ export default function AdminUsersPage() {
             { key: "all",            label: `全員 (${scheduleUsers.length})` },
             { key: "no_schedule",    label: `リスト未登録 (${notInChannelUsers.length})` },
             { key: "no_global_name", label: `表示名未設定 (${noGlobalNameUsers.length})` },
+            { key: "left_guild",     label: `退出済み (${leftGuildUsers.length})` },
           ] as const).map(({ key, label }) => (
             <button
               key={key}
@@ -180,6 +184,14 @@ export default function AdminUsersPage() {
                       style={{ border: "1px solid #e8d040", color: "#e8d040" }}
                     >
                       リスト未登録
+                    </span>
+                  )}
+                  {!u.inGuild && (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-bold"
+                      style={{ border: "1px solid #f04848", color: "#f04848" }}
+                    >
+                      退出済み
                     </span>
                   )}
                 </div>

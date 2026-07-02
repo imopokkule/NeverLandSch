@@ -49,9 +49,10 @@ export async function GET() {
     }])
   );
 
-  // Discord ギルドメンバー一覧を取得（アバター・global_name補完）
+  // Discord ギルドメンバー一覧を取得（アバター・global_name補完・在籍確認）
   const avatarMap = new Map<string, string>();
   const globalNameMap = new Map<string, string>();
+  const guildMemberIds = new Set<string>();
 
   const token = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID;
@@ -102,6 +103,7 @@ export async function GET() {
         }> = await res.json();
         for (const m of members) {
           const uid = m.user.id;
+          guildMemberIds.add(uid);
           const hash = m.avatar ?? m.user.avatar;
           avatarMap.set(
             uid,
@@ -146,6 +148,7 @@ export async function GET() {
         isNew,
         hasSchedule: true,
         inUserListChannel: userListMentioned.has(discord_id),
+        inGuild: guildMemberIds.size === 0 || guildMemberIds.has(discord_id),
       };
     })
     .sort((a, b) => {
