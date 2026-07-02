@@ -15,12 +15,13 @@ function defaultAvatarUrl(userId: string): string {
 
 type AppUser = {
   discord_id: string;
-  site_name: string;
+  site_name: string | null;
   discord_name: string | null;
   display_name: string | null;
   avatar_url: string | null;
   created_at: string | null;
   isNew: boolean;
+  hasSchedule: boolean;
 };
 
 export default function AdminUsersPage() {
@@ -29,6 +30,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "no_schedule">("all");
 
   const isAdmin =
     ADMIN_IDS.length > 0 && !!session?.user?.id && ADMIN_IDS.includes(session.user.id);
@@ -58,8 +60,13 @@ export default function AdminUsersPage() {
 
   if (!isAdmin) return null;
 
+  const scheduleUsers = users.filter((u) => u.hasSchedule);
+  const noScheduleUsers = users.filter((u) => !u.hasSchedule);
+
+  const baseList = filter === "no_schedule" ? noScheduleUsers : scheduleUsers;
+
   const filtered = search.trim()
-    ? users.filter((u) => {
+    ? baseList.filter((u) => {
         const q = search.toLowerCase();
         return (
           u.site_name?.toLowerCase().includes(q) ||
@@ -67,7 +74,7 @@ export default function AdminUsersPage() {
           u.display_name?.toLowerCase().includes(q)
         );
       })
-    : users;
+    : baseList;
 
   return (
     <main className="min-h-screen p-8 md:p-12" style={{ backgroundColor: "#0a1a1e" }}>
@@ -80,8 +87,26 @@ export default function AdminUsersPage() {
             Users
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            スケジュール登録済みユーザーの一覧です。（{users.length} 人）
+            スケジュール登録済み {scheduleUsers.length} 人 / ログイン済み未登録 {noScheduleUsers.length} 人
           </p>
+        </div>
+
+        {/* フィルター */}
+        <div className="flex gap-2">
+          {(["all", "no_schedule"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className="px-4 py-2 rounded-lg text-sm font-bold tracking-widest transition"
+              style={{
+                backgroundColor: filter === f ? "#4ecdc4" : "#112428",
+                border: `1px solid ${filter === f ? "#4ecdc4" : "#1e3d45"}`,
+                color: filter === f ? "#0b1a14" : "#9ec9b4",
+              }}
+            >
+              {f === "all" ? `スケジュール登録済み (${scheduleUsers.length})` : `未登録 (${noScheduleUsers.length})`}
+            </button>
+          ))}
         </div>
 
         {/* 検索 */}
@@ -130,7 +155,7 @@ export default function AdminUsersPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold" style={{ color: "#e8f5f0" }}>
-                    {u.site_name}
+                    {u.site_name ?? u.discord_name ?? u.discord_id}
                   </p>
                   {u.isNew && (
                     <span
@@ -138,6 +163,14 @@ export default function AdminUsersPage() {
                       style={{ backgroundColor: "#4ecdc4", color: "#0a1a1e" }}
                     >
                       NEW
+                    </span>
+                  )}
+                  {!u.hasSchedule && (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-bold"
+                      style={{ border: "1px solid #e8d040", color: "#e8d040" }}
+                    >
+                      未登録
                     </span>
                   )}
                 </div>

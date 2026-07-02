@@ -34,11 +34,12 @@ export async function GET() {
 
   const ids = Array.from(scheduleNameMap.keys());
 
-  // app_users からアバター・ユーザー名・登録日を取得
-  const { data: appUsers } = await supabase
+  // app_users 全件取得（登録日・アバター・スケジュール未登録ユーザー検出に使用）
+  const { data: allAppUsers } = await supabase
     .from("app_users")
-    .select("discord_id, user_name, avatar_url, created_at")
-    .in("discord_id", ids);
+    .select("discord_id, user_name, avatar_url, created_at");
+
+  const appUsers = (allAppUsers ?? []).filter((u) => ids.includes(u.discord_id));
 
   const appUserMap = new Map<string, { user_name: string | null; avatar_url: string | null; created_at: string | null }>(
     (appUsers ?? []).map((u) => [u.discord_id, {
@@ -88,15 +89,14 @@ export async function GET() {
   const now = Date.now();
   const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
+  const scheduleIds = new Set(ids);
+
   const result = ids
     .filter((id) => scheduleNameMap.has(id))
     .map((discord_id) => {
       const appUser = appUserMap.get(discord_id);
-      // site_name: schedules の user_name（サイト内表示名）
       const site_name = scheduleNameMap.get(discord_id)!;
-      // discord_name: app_users.user_name（Discord ユーザー名、ログイン時に更新）
       const discord_name = appUser?.user_name ?? null;
-      // display_name: Discord の global_name（表示名）があれば優先
       const display_name = globalNameMap.get(discord_id) ?? null;
       const created_at = appUser?.created_at ?? null;
       const isNew = created_at
@@ -111,15 +111,34 @@ export async function GET() {
         avatar_url: avatarMap.get(discord_id) ?? appUser?.avatar_url ?? defaultAvatarUrl(discord_id),
         created_at,
         isNew,
+        hasSchedule: true,
       };
     })
     .sort((a, b) => {
-      // 新規ユーザー（1週間以内）を上位に
       if (a.isNew !== b.isNew) return a.isNew ? -1 : 1;
-      const nameA = a.site_name ?? "";
-      const nameB = b.site_name ?? "";
-      return nameA.localeCompare(nameB, "ja");
+      return (a.site_name ?? "").localeCompare(b.site_name ?? "", "ja");
     });
 
-  return NextResponse.json(result);
+  // スケジュール未登録のログイン済みユーザー
+  const noScheduleResult = (allAppUsers ?? [])
+    .filter((u) => !scheduleIds.has(u.discord_id))
+    .map((u) => {
+      const created_at = u.created_at ?? null;
+      const isNew = created_at
+        ? now - new Date(created_at).getTime() < ONE_WEEK_MS
+        : false;
+      return {
+        discord_id: u.discord_id,
+        site_name: null as string | null,
+        discord_name: u.user_name ?? null,
+        display_name: globalNameMap.get(u.discord_id) ?? null,
+        avatar_url: avatarMap.get(u.discord_id) ?? u.avatar_url ?? defaultAvatarUrl(u.discord_id),
+        created_at,
+        isNew,
+        hasSchedule: false,
+      };
+    })
+    .sort((a, b) => (a.discord_name ?? "").localeCompare(b.discord_name ?? "", "ja"));
+
+  return NextResponse.json([...result, ...noScheduleResult]);
 }
