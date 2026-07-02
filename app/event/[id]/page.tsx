@@ -418,14 +418,14 @@ export default function EventDetailPage() {
 
                   {Array.from({ length: daysInMonth }).map((_, i) => {
                     const day = i + 1;
-                    const overall = getDayStatus(day);
                     const isEventDate = event.event_date === `${selectedMonth}-${String(day).padStart(2, "0")}`;
                     const isHovered = hoveredDay === day;
                     const dow = (firstDayOfWeek + i) % 7;
                     const dayColor = dow === 0 ? "#e07070" : dow === 6 ? "#7099e0" : "#9ec9b4";
 
-                    const bgColor = overall === "◎" ? "#0a2818" : overall === "〇" ? "#201e08" : overall === "△" ? "#061220" : overall === "×" ? "#200606" : "#112428";
-                    const symbolColor = overall === "◎" ? "#4ef0a0" : overall === "〇" ? "#e8d040" : overall === "△" ? "#508cf0" : overall === "×" ? "#f04848" : undefined;
+                    const MAX_VISIBLE = 3;
+                    const visibleP = participants.slice(0, MAX_VISIBLE);
+                    const hiddenCount = participants.length - MAX_VISIBLE;
 
                     return (
                       <div
@@ -435,29 +435,56 @@ export default function EventDetailPage() {
                         onMouseLeave={() => setHoveredDay(null)}
                         className="rounded-lg cursor-pointer transition-all select-none"
                         style={{
-                          backgroundColor: bgColor,
+                          backgroundColor: "#112428",
                           border: isEventDate
                             ? "2px solid #4ecdc4"
                             : isHovered
                             ? "1px solid #4ecdc4"
                             : "1px solid #1e3d45",
-                          minHeight: "60px",
+                          minHeight: "80px",
                           padding: "5px",
                           display: "flex",
                           flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "space-between",
+                          gap: "2px",
                         }}
                       >
-                        <div className="w-full text-right text-xs" style={{ color: dayColor }}>{day}</div>
-                        {overall && symbolColor && (
-                          <div className="font-bold" style={{ color: symbolColor, textShadow: `0 0 8px ${symbolColor}`, fontSize: "1.1rem" }}>
-                            {overall}
-                          </div>
-                        )}
-                        {isEventDate && (
-                          <div className="text-center" style={{ fontSize: "0.55rem", color: "#4ecdc4" }}>●</div>
-                        )}
+                        {/* 日付 */}
+                        <div className="w-full text-right" style={{ fontSize: "11px", lineHeight: "14px" }}>
+                          {isEventDate
+                            ? <span style={{ color: "#4ecdc4", fontWeight: "bold" }}>{day} ●</span>
+                            : <span style={{ color: dayColor }}>{day}</span>
+                          }
+                        </div>
+
+                        {/* 参加者ステータスチップ */}
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1px", width: "100%" }}>
+                          {visibleP.map((u) => {
+                            const v = u.data?.[String(day)];
+                            const s = getCellStyle(v);
+                            return (
+                              <div
+                                key={u.discord_id}
+                                style={{
+                                  ...s,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "2px",
+                                  borderRadius: "3px",
+                                  padding: "0 3px",
+                                  fontSize: "9px",
+                                  lineHeight: "14px",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <span style={{ fontWeight: "bold", flexShrink: 0 }}>{getCellLabel(v)}</span>
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.user_name}</span>
+                              </div>
+                            );
+                          })}
+                          {hiddenCount > 0 && (
+                            <div style={{ color: "#4a6a60", fontSize: "9px", lineHeight: "14px" }}>+{hiddenCount}人</div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -466,10 +493,23 @@ export default function EventDetailPage() {
 
               {/* ホバー中の日の参加状況パネル */}
               {hoveredDay ? (
-                <div className="rounded-xl p-4 space-y-2" style={{ backgroundColor: "#0d1f24", border: "1px solid #2a5560" }}>
-                  <div className="text-sm font-bold" style={{ color: "#4ecdc4" }}>
-                    {Number(selectedMonth.slice(0, 4))}年{Number(selectedMonth.slice(5, 7))}月{hoveredDay}日
+                <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: "#0d1f24", border: "1px solid #2a5560" }}>
+                  {/* 日付 + 判定 */}
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm font-bold" style={{ color: "#4ecdc4" }}>
+                      {Number(selectedMonth.slice(0, 4))}年{Number(selectedMonth.slice(5, 7))}月{hoveredDay}日
+                    </div>
+                    {(() => {
+                      const overall = getDayStatus(hoveredDay);
+                      const overallColor = overall === "◎" ? "#4ef0a0" : overall === "〇" ? "#e8d040" : overall === "△" ? "#508cf0" : overall === "×" ? "#f04848" : null;
+                      return overall && overallColor ? (
+                        <span className="font-bold" style={{ color: overallColor, textShadow: `0 0 8px ${overallColor}`, fontSize: "1.2rem" }}>
+                          {overall}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
+                  {/* 全参加者 */}
                   <div className="flex flex-wrap gap-2">
                     {participants.map((u) => {
                       const v = u.data?.[String(hoveredDay)];
@@ -490,7 +530,7 @@ export default function EventDetailPage() {
                 </div>
               ) : (
                 <div className="rounded-xl px-4 py-3 text-xs text-center" style={{ backgroundColor: "#0d1f24", border: "1px dashed #2a5560", color: "#4a6a60" }}>
-                  日付にマウスオーバーで参加者の状況を確認できます
+                  日付にマウスオーバーで判定と全参加者の状況を確認できます
                 </div>
               )}
             </div>
