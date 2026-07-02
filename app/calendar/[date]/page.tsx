@@ -16,6 +16,9 @@ type CalEvent = {
   title: string;
   discord_channel_id: string | null;
   status: string;
+  gm_name: string | null;
+  creator_name: string | null;
+  participants: { discord_id: string; user_name: string }[] | null;
 };
 
 const AVAIL_GROUPS = [
@@ -99,7 +102,7 @@ export default function DateDetailPage() {
       // その日のイベント取得
       const { data: evData } = await supabase
         .from("events")
-        .select("id, title, discord_channel_id, status")
+        .select("id, title, discord_channel_id, status, gm_name, creator_name, participants")
         .eq("event_date", date)
         .order("status");
 
@@ -161,16 +164,49 @@ export default function DateDetailPage() {
                     const color = STATUS_COLORS[ev.status] ?? "#9ec9b4";
                     const label = STATUS_LABELS[ev.status] ?? ev.status;
                     const href = ev.discord_channel_id ? `/event/${ev.discord_channel_id}` : null;
+                    const gmName = ev.gm_name ?? ev.creator_name ?? null;
+                    const rawParticipants = (ev.participants ?? []).map((p) =>
+                      typeof p === "string" ? JSON.parse(p) : p
+                    ) as { discord_id: string; user_name: string }[];
+
                     const inner = (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold" style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif" }}>
-                          {stripDatePrefix(ev.title)}
-                        </span>
-                        <span className="text-xs px-2 py-0.5 rounded-full ml-3 shrink-0" style={{ color, border: `1px solid ${color}` }}>
-                          {label}
-                        </span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold" style={{ color: "#e8f5f0", fontFamily: "'Cinzel', serif" }}>
+                            {stripDatePrefix(ev.title)}
+                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {!ev.discord_channel_id && (
+                              <span className="text-xs px-2 py-0.5 rounded-full" style={{ color: "#9ec9b4", border: "1px solid #1e3d45" }}>
+                                アーカイブ
+                              </span>
+                            )}
+                            <span className="text-xs px-2 py-0.5 rounded-full" style={{ color, border: `1px solid ${color}` }}>
+                              {label}
+                            </span>
+                          </div>
+                        </div>
+                        {gmName && (
+                          <div className="text-xs" style={{ color: "#9ec9b4" }}>
+                            GM: <span style={{ color: "#e8f5f0" }}>{gmName}</span>
+                          </div>
+                        )}
+                        {rawParticipants.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {rawParticipants.map((p) => (
+                              <span
+                                key={p.discord_id}
+                                className="text-xs px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: "#0a2818", color: "#4ef0a0", border: "1px solid #2a6040" }}
+                              >
+                                {p.user_name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
+
                     return href ? (
                       <Link
                         key={ev.id}
