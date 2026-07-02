@@ -22,7 +22,6 @@ type AppUser = {
   created_at: string | null;
   isNew: boolean;
   hasSchedule: boolean;
-  inUserListChannel: boolean;
   inGuild: boolean;
 };
 
@@ -63,7 +62,6 @@ export default function AdminUsersPage() {
   if (!isAdmin) return null;
 
   const scheduleUsers = users.filter((u) => u.hasSchedule);
-  const notInChannelUsers = scheduleUsers.filter((u) => !u.inUserListChannel);
   const noGlobalNameUsers = scheduleUsers.filter((u) => !u.display_name);
   const leftGuildUsers = scheduleUsers.filter((u) => !u.inGuild);
 
@@ -171,11 +169,6 @@ export default function AdminUsersPage() {
                   {u.isNew && (
                     <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: "#4ecdc4", color: "#0a1a1e" }}>
                       NEW
-                    </span>
-                  )}
-                  {!u.inUserListChannel && (
-                    <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ border: "1px solid #e8d040", color: "#e8d040" }}>
-                      リスト未登録
                     </span>
                   )}
                   {!u.inGuild && (

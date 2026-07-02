@@ -56,40 +56,6 @@ export async function GET() {
 
   const token = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID;
-  const USERLIST_CHANNEL_ID = "1501747391462637659";
-
-  // ユーザーリストチャンネルでメンションされたユーザーIDを取得（ページネーション対応）
-  const userListMentioned = new Set<string>();
-  if (token) {
-    try {
-      let before: string | undefined;
-      for (let page = 0; page < 20; page++) {
-        const url = new URL(`https://discord.com/api/v10/channels/${USERLIST_CHANNEL_ID}/messages`);
-        url.searchParams.set("limit", "100");
-        if (before) url.searchParams.set("before", before);
-
-        const msgRes = await fetch(url.toString(), {
-          headers: { Authorization: `Bot ${token}` },
-        });
-        if (!msgRes.ok) break;
-
-        const messages: Array<{ id: string; mentions: Array<{ id: string }> }> = await msgRes.json();
-        if (messages.length === 0) break;
-
-        for (const msg of messages) {
-          for (const mention of msg.mentions ?? []) {
-            userListMentioned.add(mention.id);
-          }
-        }
-
-        if (messages.length < 100) break;
-        before = messages[messages.length - 1].id;
-      }
-    } catch {
-      // Discord API 失敗時はスキップ
-    }
-  }
-
   if (token && guildId) {
     try {
       const res = await fetch(
@@ -147,7 +113,6 @@ export async function GET() {
         created_at,
         isNew,
         hasSchedule: true,
-        inUserListChannel: userListMentioned.has(discord_id),
         inGuild: guildMemberIds.size === 0 || guildMemberIds.has(discord_id),
       };
     })
