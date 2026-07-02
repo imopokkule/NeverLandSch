@@ -164,7 +164,7 @@ export default function AdminUsersPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold" style={{ color: "#e8f5f0" }}>
-                    {u.site_name ?? u.discord_name ?? u.discord_id}
+                    {u.display_name ?? u.site_name ?? u.discord_name ?? u.discord_id}
                   </p>
                   {u.isNew && (
                     <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: "#4ecdc4", color: "#0a1a1e" }}>
@@ -178,8 +178,8 @@ export default function AdminUsersPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                  {u.display_name && (
-                    <p className="text-xs font-semibold" style={{ color: "#4ecdc4" }}>{u.display_name}</p>
+                  {u.site_name && u.site_name !== u.display_name && (
+                    <p className="text-xs" style={{ color: "#6bb8a0" }}>{u.site_name}</p>
                   )}
                   {u.discord_name && (
                     <p className="text-xs" style={{ color: "#9ec9b4" }}>@{u.discord_name}</p>
