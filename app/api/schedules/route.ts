@@ -12,10 +12,29 @@ export async function GET(req: Request) {
   );
 
   const [{ data: schedUsers }, { data: monthData }, { data: appUsers }] = await Promise.all([
-    supabase.from("schedules").select("discord_id, user_name").not("user_name", "is", null),
+    supabase.from("schedules").select("discord_id, user_name").not("discord_id", "is", null),
     supabase.from("schedules").select("discord_id, data").eq("month", month),
     supabase.from("app_users").select("discord_id, user_name"),
   ]);
+
+  // Discord global_name（表示名）を優先名として取得
+  const globalNameMap = new Map<string, string>();
+  const token = process.env.DISCORD_BOT_TOKEN;
+  const guildId = process.env.DISCORD_GUILD_ID;
+  if (token && guildId) {
+    try {
+      const res = await fetch(
+        `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,
+        { headers: { Authorization: `Bot ${token}` } }
+      );
+      if (res.ok) {
+        const members: Array<{ user: { id: string; global_name?: string | null } }> = await res.json();
+        for (const m of members) {
+          if (m.user.global_name) globalNameMap.set(m.user.id, m.user.global_name);
+        }
+      }
+    } catch {}
+  }
 
   const appNameMap = new Map<string, string>(
     (appUsers ?? [])
@@ -25,12 +44,19 @@ export async function GET(req: Request) {
 
   const isDiscordId = (name: string) => /^\d{15,20}$/.test(name);
 
-  const users = (schedUsers ?? []).map((u) => ({
+  // 重複排除
+  const unique = Array.from(
+    new Map((schedUsers ?? []).map((u) => [u.discord_id, u])).values()
+  );
+
+  const users = unique.map((u) => ({
     discord_id: u.discord_id,
+    // 優先順位: Discord global_name > schedules.user_name（IDでなければ） > app_users.user_name
     user_name:
-      !u.user_name || isDiscordId(u.user_name)
-        ? (appNameMap.get(u.discord_id) ?? u.user_name)
-        : u.user_name,
+      globalNameMap.get(u.discord_id) ??
+      (!u.user_name || isDiscordId(u.user_name)
+        ? (appNameMap.get(u.discord_id) ?? u.user_name ?? u.discord_id)
+        : u.user_name),
   }));
 
   return NextResponse.json({
