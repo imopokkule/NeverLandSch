@@ -155,9 +155,9 @@ export default function AdminUsersPage() {
               key={u.discord_id}
               onClick={() => router.push(`/schedule/${u.discord_id}`)}
               className="flex items-center gap-4 p-4 rounded-xl cursor-pointer transition"
-              style={{ backgroundColor: "#112428", border: `1px solid ${u.isNew ? "#4ecdc4" : "#1e3d45"}` }}
-              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.borderColor = "#4ecdc4"}
-              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.borderColor = u.isNew ? "#4ecdc4" : "#1e3d45"}
+              style={{ backgroundColor: "#112428", border: `1px solid ${!u.inGuild ? "#f04848" : u.isNew ? "#4ecdc4" : "#1e3d45"}` }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.borderColor = !u.inGuild ? "#f04848" : "#4ecdc4"}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.borderColor = !u.inGuild ? "#f04848" : u.isNew ? "#4ecdc4" : "#1e3d45"}
             >
               <img
                 src={u.avatar_url ?? defaultAvatarUrl(u.discord_id)}
@@ -171,40 +171,27 @@ export default function AdminUsersPage() {
                     {u.site_name ?? u.discord_name ?? u.discord_id}
                   </p>
                   {u.isNew && (
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-bold"
-                      style={{ backgroundColor: "#4ecdc4", color: "#0a1a1e" }}
-                    >
+                    <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: "#4ecdc4", color: "#0a1a1e" }}>
                       NEW
                     </span>
                   )}
                   {!u.inUserListChannel && (
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-bold"
-                      style={{ border: "1px solid #e8d040", color: "#e8d040" }}
-                    >
+                    <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ border: "1px solid #e8d040", color: "#e8d040" }}>
                       リスト未登録
                     </span>
                   )}
                   {!u.inGuild && (
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-bold"
-                      style={{ border: "1px solid #f04848", color: "#f04848" }}
-                    >
+                    <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ border: "1px solid #f04848", color: "#f04848" }}>
                       退出済み
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                   {u.discord_name && (
-                    <p className="text-xs" style={{ color: "#9ec9b4" }}>
-                      @{u.discord_name}
-                    </p>
+                    <p className="text-xs" style={{ color: "#9ec9b4" }}>@{u.discord_name}</p>
                   )}
                   {u.display_name && u.display_name !== u.site_name && u.display_name !== u.discord_name && (
-                    <p className="text-xs" style={{ color: "#6bb8a0" }}>
-                      {u.display_name}
-                    </p>
+                    <p className="text-xs" style={{ color: "#6bb8a0" }}>{u.display_name}</p>
                   )}
                   {u.created_at && (
                     <p className="text-xs" style={{ color: "#4a7a6a" }}>
@@ -213,6 +200,26 @@ export default function AdminUsersPage() {
                   )}
                 </div>
               </div>
+
+              {/* 退出済みユーザーのみ削除ボタン */}
+              {!u.inGuild && (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!confirm(`「${u.site_name ?? u.discord_name ?? u.discord_id}」のデータを削除しますか？\nこの操作は取り消せません。`)) return;
+                    const res = await fetch(`/api/admin/delete-user?discord_id=${u.discord_id}`, { method: "DELETE" });
+                    if (res.ok) {
+                      setUsers((prev) => prev.filter((x) => x.discord_id !== u.discord_id));
+                    } else {
+                      alert("削除に失敗しました");
+                    }
+                  }}
+                  className="shrink-0 px-3 py-2 rounded-lg text-xs font-bold transition hover:opacity-80"
+                  style={{ backgroundColor: "#3a0a0a", border: "1px solid #f04848", color: "#f04848" }}
+                >
+                  登録削除
+                </button>
+              )}
             </div>
           ))}
 
