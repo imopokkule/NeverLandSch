@@ -22,6 +22,7 @@ type AppUser = {
   created_at: string | null;
   isNew: boolean;
   hasSchedule: boolean;
+  inUserListChannel: boolean;
 };
 
 export default function AdminUsersPage() {
@@ -61,9 +62,9 @@ export default function AdminUsersPage() {
   if (!isAdmin) return null;
 
   const scheduleUsers = users.filter((u) => u.hasSchedule);
-  const noScheduleUsers = users.filter((u) => !u.hasSchedule);
+  const notInChannelUsers = scheduleUsers.filter((u) => !u.inUserListChannel);
 
-  const baseList = filter === "no_schedule" ? noScheduleUsers : scheduleUsers;
+  const baseList = filter === "no_schedule" ? notInChannelUsers : scheduleUsers;
 
   const filtered = search.trim()
     ? baseList.filter((u) => {
@@ -87,7 +88,7 @@ export default function AdminUsersPage() {
             Users
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            スケジュール登録済み {scheduleUsers.length} 人 / ログイン済み未登録 {noScheduleUsers.length} 人
+            全 {scheduleUsers.length} 人 / ユーザーリスト未登録 {notInChannelUsers.length} 人
           </p>
         </div>
 
@@ -104,7 +105,7 @@ export default function AdminUsersPage() {
                 color: filter === f ? "#0b1a14" : "#9ec9b4",
               }}
             >
-              {f === "all" ? `スケジュール登録済み (${scheduleUsers.length})` : `未登録 (${noScheduleUsers.length})`}
+              {f === "all" ? `全員 (${scheduleUsers.length})` : `ユーザーリスト未登録 (${notInChannelUsers.length})`}
             </button>
           ))}
         </div>
@@ -165,12 +166,12 @@ export default function AdminUsersPage() {
                       NEW
                     </span>
                   )}
-                  {!u.hasSchedule && (
+                  {!u.inUserListChannel && (
                     <span
                       className="text-xs px-2 py-0.5 rounded-full font-bold"
                       style={{ border: "1px solid #e8d040", color: "#e8d040" }}
                     >
-                      未登録
+                      リスト未登録
                     </span>
                   )}
                 </div>

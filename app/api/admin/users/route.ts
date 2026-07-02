@@ -55,6 +55,38 @@ export async function GET() {
 
   const token = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID;
+  const USERLIST_CHANNEL_ID = "1501747391462637659";
+
+  // ユーザーリストチャンネルに投稿したユーザーIDを取得（ページネーション対応）
+  const userListPosters = new Set<string>();
+  if (token) {
+    try {
+      let before: string | undefined;
+      for (let page = 0; page < 20; page++) {
+        const url = new URL(`https://discord.com/api/v10/channels/${USERLIST_CHANNEL_ID}/messages`);
+        url.searchParams.set("limit", "100");
+        if (before) url.searchParams.set("before", before);
+
+        const msgRes = await fetch(url.toString(), {
+          headers: { Authorization: `Bot ${token}` },
+        });
+        if (!msgRes.ok) break;
+
+        const messages: Array<{ id: string; author: { id: string; bot?: boolean } }> = await msgRes.json();
+        if (messages.length === 0) break;
+
+        for (const msg of messages) {
+          if (!msg.author.bot) userListPosters.add(msg.author.id);
+        }
+
+        if (messages.length < 100) break;
+        before = messages[messages.length - 1].id;
+      }
+    } catch {
+      // Discord API 失敗時はスキップ
+    }
+  }
+
   if (token && guildId) {
     try {
       const res = await fetch(
@@ -75,7 +107,6 @@ export async function GET() {
               ? `https://cdn.discordapp.com/avatars/${uid}/${hash}.png`
               : defaultAvatarUrl(uid)
           );
-          // global_name（表示名）があれば保存
           if (m.user.global_name) {
             globalNameMap.set(uid, m.user.global_name);
           }
@@ -112,6 +143,7 @@ export async function GET() {
         created_at,
         isNew,
         hasSchedule: true,
+        inUserListChannel: userListPosters.has(discord_id),
       };
     })
     .sort((a, b) => {
@@ -119,26 +151,5 @@ export async function GET() {
       return (a.site_name ?? "").localeCompare(b.site_name ?? "", "ja");
     });
 
-  // スケジュール未登録のログイン済みユーザー
-  const noScheduleResult = (allAppUsers ?? [])
-    .filter((u) => !scheduleIds.has(u.discord_id))
-    .map((u) => {
-      const created_at = u.created_at ?? null;
-      const isNew = created_at
-        ? now - new Date(created_at).getTime() < ONE_WEEK_MS
-        : false;
-      return {
-        discord_id: u.discord_id,
-        site_name: null as string | null,
-        discord_name: u.user_name ?? null,
-        display_name: globalNameMap.get(u.discord_id) ?? null,
-        avatar_url: avatarMap.get(u.discord_id) ?? u.avatar_url ?? defaultAvatarUrl(u.discord_id),
-        created_at,
-        isNew,
-        hasSchedule: false,
-      };
-    })
-    .sort((a, b) => (a.discord_name ?? "").localeCompare(b.discord_name ?? "", "ja"));
-
-  return NextResponse.json([...result, ...noScheduleResult]);
+  return NextResponse.json(result);
 }
