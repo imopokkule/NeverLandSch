@@ -178,11 +178,11 @@ export default function AdminUsersPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                  {u.display_name && (
+                    <p className="text-xs font-semibold" style={{ color: "#4ecdc4" }}>{u.display_name}</p>
+                  )}
                   {u.discord_name && (
                     <p className="text-xs" style={{ color: "#9ec9b4" }}>@{u.discord_name}</p>
-                  )}
-                  {u.display_name && u.display_name !== u.site_name && u.display_name !== u.discord_name && (
-                    <p className="text-xs" style={{ color: "#6bb8a0" }}>{u.display_name}</p>
                   )}
                   {u.created_at && (
                     <p className="text-xs" style={{ color: "#4a7a6a" }}>
