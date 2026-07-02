@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { supabase } from "@/app/lib/supabase";
+
+const ADMIN_IDS = (process.env.NEXT_PUBLIC_ADMIN_DISCORD_IDS ?? "")
+  .split(",").map((s) => s.trim()).filter(Boolean);
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -38,12 +42,18 @@ function defaultAvatarUrl(userId: string): string {
 
 export default function UserSchedulePage() {
   const params = useParams();
+  const { data: session } = useSession();
   const targetId = params.id as string;
+
+  const isAdmin = ADMIN_IDS.length > 0 && !!session?.user?.id && ADMIN_IDS.includes(session.user.id);
 
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [availability, setAvailability] = useState<Record<string, number>>({});
   const [userName, setUserName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   const shiftMonth = (delta: number) => {
     const [y, m] = month.split("-").map(Number);
@@ -69,7 +79,10 @@ export default function UserSchedulePage() {
         .not("user_name", "is", null)
         .limit(1)
         .maybeSingle();
-      if (data?.user_name) setUserName(data.user_name);
+      if (data?.user_name) {
+        setUserName(data.user_name);
+        setEditName(data.user_name);
+      }
 
       // app_users からアバターを取得
       const { data: appUser } = await supabase
@@ -96,6 +109,25 @@ export default function UserSchedulePage() {
     };
     fetchSchedule();
   }, [targetId, month]);
+
+  const saveName = async () => {
+    if (!editName.trim() || saving) return;
+    setSaving(true);
+    setSaveMsg(null);
+    const res = await fetch("/api/admin/set-username", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ discord_id: targetId, user_name: editName.trim() }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setUserName(editName.trim());
+      setSaveMsg("保存しました");
+      setTimeout(() => setSaveMsg(null), 3000);
+    } else {
+      setSaveMsg("保存に失敗しました");
+    }
+  };
 
   const avatarSrc = avatarUrl ?? defaultAvatarUrl(targetId);
 
@@ -126,6 +158,44 @@ export default function UserSchedulePage() {
             </div>
           </div>
         </div>
+
+        {/* 管理者向け：表示名編集 */}
+        {isAdmin && (
+          <div className="rounded-xl p-5 space-y-3" style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}>
+            <p className="text-xs font-bold tracking-widest" style={{ color: "#4ecdc4", fontFamily: "'Cinzel', serif" }}>
+              Display Name （管理者）
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveName()}
+                placeholder="表示名を入力..."
+                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ backgroundColor: "#0d1f24", border: "1px solid #2a5560", color: "#e8f5f0" }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#4ecdc4")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#2a5560")}
+              />
+              <button
+                onClick={saveName}
+                disabled={saving || !editName.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-bold transition"
+                style={{
+                  backgroundColor: "#4ecdc4",
+                  color: "#0b1a14",
+                  opacity: saving || !editName.trim() ? 0.5 : 1,
+                }}
+              >
+                {saving ? "保存中..." : "保存"}
+              </button>
+            </div>
+            {saveMsg && (
+              <p className="text-xs" style={{ color: saveMsg.includes("失敗") ? "#f04848" : "#4ef0a0" }}>
+                {saveMsg}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* 月選択 */}
         <div className="flex items-center justify-between px-5 py-4 rounded-xl" style={{ backgroundColor: "#112428", border: "1px solid #1e3d45" }}>
