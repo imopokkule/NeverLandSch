@@ -44,12 +44,12 @@ const STATUS_COLORS: Record<string, string> = {
 const getCellLabel = (v: number | null | undefined) =>
   v === 3 ? "◎" : v === 1 ? "〇" : v === 2 ? "△" : v === 0 ? "×" : "-";
 
-const getSymbolColor = (v: number | null | undefined): string => {
-  if (v === 3) return "#4ef0a0";
-  if (v === 1) return "#e8d040";
-  if (v === 2) return "#508cf0";
-  if (v === 0) return "#f04848";
-  return "#3a5560";
+const getCellStyle = (v: number | null | undefined) => {
+  if (v === 3) return { backgroundColor: "#0a2818", color: "#4ef0a0", textShadow: "0 0 8px rgba(78,240,160,0.8)" };
+  if (v === 1) return { backgroundColor: "#201e08", color: "#e8d040", textShadow: "0 0 8px rgba(232,208,64,0.8)" };
+  if (v === 2) return { backgroundColor: "#061220", color: "#508cf0", textShadow: "0 0 8px rgba(80,140,240,0.8)" };
+  if (v === 0) return { backgroundColor: "#200606", color: "#f04848", textShadow: "0 0 8px rgba(240,72,72,0.8)" };
+  return       { backgroundColor: "#112428", color: "#4a6a60" };
 };
 
 const LEGEND = [
@@ -59,12 +59,25 @@ const LEGEND = [
   { symbol: "×", label: "参加不可", color: "#f04848" },
 ];
 
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 function stripDatePrefix(title: string): string {
   const stripped = title.replace(/^\d{1,2}月\d{1,2}日\d{1,2}時(半)?(?:[〜～]?[：:]\s*|[〜～]\s*)?/, "").trim();
   return stripped || title;
 }
 
+const getWeekday = (ym: string, day: number) => {
+  const [y, m] = ym.split("-").map(Number);
+  return WEEKDAYS[new Date(y, m - 1, day).getDay()];
+};
+
+const getWeekdayColor = (ym: string, day: number) => {
+  const [y, m] = ym.split("-").map(Number);
+  const dow = new Date(y, m - 1, day).getDay();
+  if (dow === 0) return "#e07070";
+  if (dow === 6) return "#7099e0";
+  return "#9ec9b4";
+};
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -78,7 +91,6 @@ export default function EventDetailPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [editOpen, setEditOpen] = useState(false);
   const [statusOptions, setStatusOptions] = useState(FALLBACK_statusOptions);
-  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
 
   const inputStyle = { backgroundColor: "#112428", border: "1px solid #1e3d45", color: "#e8f5f0" };
 
@@ -182,12 +194,6 @@ export default function EventDetailPage() {
     Number(selectedMonth.slice(5, 7)),
     0
   ).getDate();
-
-  const firstDayOfWeek = new Date(
-    Number(selectedMonth.slice(0, 4)),
-    Number(selectedMonth.slice(5, 7)) - 1,
-    1
-  ).getDay();
 
   const getDayStatus = (day: number) => {
     if (participants.length === 0) return "";
@@ -395,157 +401,55 @@ export default function EventDetailPage() {
           </div>
 
           {participants.length > 0 ? (
-            <div className="space-y-3">
-              {/* カレンダーグリッド */}
-              <div>
-                {/* 曜日ヘッダー */}
-                <div className="grid grid-cols-7 mb-1">
-                  {["日", "月", "火", "水", "木", "金", "土"].map((d, i) => (
-                    <div key={d} className="text-center text-xs py-2 font-bold" style={{
-                      color: i === 0 ? "#e07070" : i === 6 ? "#7099e0" : "#9ec9b4",
-                    }}>
-                      {d}
-                    </div>
-                  ))}
-                </div>
-
-                {/* 日付セル */}
-                <div className="grid grid-cols-7 gap-1">
-                  {/* 月初の空白 */}
-                  {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                    <div key={`empty-${i}`} style={{ minHeight: "60px" }} />
-                  ))}
-
+            <div className="overflow-auto rounded-xl" style={{ border: "1px solid #1e3d45" }}>
+              <table className="text-sm border-collapse w-full" style={{ tableLayout: "fixed" }}>
+                <thead>
+                  <tr>
+                    <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#9ec9b4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "32px", minWidth: "32px" }}>日</th>
+                    <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#9ec9b4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "28px", minWidth: "28px" }}>曜</th>
+                    <th className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#4ecdc4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "40px", minWidth: "40px" }}>判定</th>
+                    {participants.map((u) => (
+                      <th key={u.discord_id} className="p-2 text-center" style={{ position: "sticky", top: 0, zIndex: 3, backgroundColor: "#0d1f24", color: "#9ec9b4", borderBottom: "2px solid #2a5560", borderRight: "1px solid #1e3d45", width: "40px", minWidth: "40px", writingMode: "vertical-rl", textOrientation: "mixed", whiteSpace: "nowrap", fontSize: "0.7rem", paddingTop: "8px", paddingBottom: "8px" }}>
+                        {u.user_name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
                   {Array.from({ length: daysInMonth }).map((_, i) => {
                     const day = i + 1;
-                    const isEventDate = event.event_date === `${selectedMonth}-${String(day).padStart(2, "0")}`;
-                    const isHovered = hoveredDay === day;
-                    const dow = (firstDayOfWeek + i) % 7;
-                    const dayColor = dow === 0 ? "#e07070" : dow === 6 ? "#7099e0" : "#9ec9b4";
-
-                    const MAX_VISIBLE = 3;
-                    const visibleP = participants.slice(0, MAX_VISIBLE);
-                    const hiddenCount = participants.length - MAX_VISIBLE;
-
+                    const overall = getDayStatus(day);
+                    const selected = event.event_date === `${selectedMonth}-${String(day).padStart(2, "0")}`;
                     return (
-                      <div
-                        key={day}
-                        onClick={() => handleDateSelect(day)}
-                        onMouseEnter={() => setHoveredDay(day)}
-                        onMouseLeave={() => setHoveredDay(null)}
-                        className="rounded-lg cursor-pointer transition-all select-none"
-                        style={{
-                          backgroundColor: "#112428",
-                          border: isEventDate
-                            ? "2px solid #4ecdc4"
-                            : isHovered
-                            ? "1px solid #4ecdc4"
-                            : "1px solid #1e3d45",
-                          minHeight: "80px",
-                          padding: "5px",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "2px",
-                        }}
-                      >
-                        {/* 日付 */}
-                        <div className="w-full text-right" style={{ fontSize: "11px", lineHeight: "14px" }}>
-                          {isEventDate
-                            ? <span style={{ color: "#4ecdc4", fontWeight: "bold" }}>{day} ●</span>
-                            : <span style={{ color: dayColor }}>{day}</span>
-                          }
-                        </div>
-
-                        {/* 参加者ステータスチップ */}
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px", width: "100%" }}>
-                          {visibleP.map((u) => {
-                            const v = u.data?.[String(day)];
-                            const symbolColor = getSymbolColor(v);
-                            return (
-                              <div
-                                key={u.discord_id}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "3px",
-                                  padding: "0 2px",
-                                  fontSize: "10px",
-                                  lineHeight: "15px",
-                                  overflow: "hidden",
-                                }}
-                              >
-                                <span style={{ color: symbolColor, fontWeight: "bold", flexShrink: 0, fontSize: "9px" }}>{getCellLabel(v)}</span>
-                                <span style={{ color: "#b8d8d0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.user_name}</span>
-                              </div>
-                            );
-                          })}
-                          {hiddenCount > 0 && (
-                            <div style={{ color: "#4a7a6a", fontSize: "9px", lineHeight: "14px" }}>+{hiddenCount}人</div>
-                          )}
-                        </div>
-                      </div>
+                      <tr key={day} style={{ backgroundColor: selected ? "#1e3d45" : "transparent" }}>
+                        <td className="p-2 text-center text-xs" style={{ color: "#9ec9b4", borderBottom: "1px solid #163240", borderRight: "1px solid #1e3d45" }}>{day}</td>
+                        <td className="p-2 text-center text-xs font-bold" style={{ color: getWeekdayColor(selectedMonth, day), borderBottom: "1px solid #163240", borderRight: "1px solid #1e3d45" }}>
+                          {getWeekday(selectedMonth, day)}
+                        </td>
+                        <td
+                          onClick={() => handleDateSelect(day)}
+                          className="p-2 text-center font-bold cursor-pointer"
+                          style={{
+                            borderBottom: "1px solid #163240", borderRight: "1px solid #1e3d45",
+                            color: overall === "◎" ? "#4ef0a0" : overall === "〇" ? "#e8d040" : overall === "△" ? "#508cf0" : overall === "×" ? "#f04848" : "#e8f5f0",
+                            outline: selected ? "2px solid #4ecdc4" : "none",
+                          }}
+                        >
+                          {overall}
+                        </td>
+                        {participants.map((u) => {
+                          const v = u.data?.[String(day)];
+                          return (
+                            <td key={u.discord_id} className="p-2 text-center text-xs" style={{ ...getCellStyle(v), borderBottom: "1px solid #163240", borderRight: "1px solid #1e3d45" }}>
+                              {getCellLabel(v)}
+                            </td>
+                          );
+                        })}
+                      </tr>
                     );
                   })}
-                </div>
-              </div>
-
-              {/* 常時表示のヒント */}
-              <div className="rounded-xl px-4 py-3 text-xs text-center" style={{ backgroundColor: "#0d1f24", border: "1px dashed #2a5560", color: "#4a6a60" }}>
-                日付にマウスオーバーで判定と全参加者の状況を確認できます
-              </div>
-
-              {/* ホバーパネル（fixed - レイアウトに影響しない） */}
-              {hoveredDay && (
-                <div
-                  style={{
-                    position: "fixed",
-                    bottom: "24px",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: "min(600px, 90vw)",
-                    zIndex: 50,
-                    backgroundColor: "#0d1f24",
-                    border: "1px solid #2a5560",
-                    borderRadius: "12px",
-                    padding: "16px",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
-                  }}
-                >
-                  {/* 日付 + 判定 */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="text-sm font-bold" style={{ color: "#4ecdc4" }}>
-                      {Number(selectedMonth.slice(0, 4))}年{Number(selectedMonth.slice(5, 7))}月{hoveredDay}日
-                    </div>
-                    {(() => {
-                      const overall = getDayStatus(hoveredDay);
-                      const overallColor = overall === "◎" ? "#4ef0a0" : overall === "〇" ? "#e8d040" : overall === "△" ? "#508cf0" : overall === "×" ? "#f04848" : null;
-                      return overall && overallColor ? (
-                        <span className="font-bold" style={{ color: overallColor, textShadow: `0 0 8px ${overallColor}`, fontSize: "1.2rem" }}>
-                          {overall}
-                        </span>
-                      ) : null;
-                    })()}
-                  </div>
-                  {/* 全参加者 */}
-                  <div className="flex flex-wrap gap-2">
-                    {participants.map((u) => {
-                      const v = u.data?.[String(hoveredDay)];
-                      const symbolColor = getSymbolColor(v);
-                      return (
-                        <div
-                          key={u.discord_id}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs"
-                          style={{ backgroundColor: "#112428", border: `1px solid ${symbolColor}55` }}
-                        >
-                          {u.avatar_url && <img src={u.avatar_url} alt="" className="w-4 h-4 rounded-full" />}
-                          <span style={{ color: symbolColor, fontWeight: "bold" }}>{getCellLabel(v)}</span>
-                          <span style={{ color: "#e8f5f0" }}>{u.user_name}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="py-16 text-center rounded-xl" style={{ border: "1px dashed #1e3d45", color: "#9ec9b4" }}>
