@@ -65,6 +65,7 @@ export async function GET() {
       if (res.ok) {
         const members: Array<{
           user: { id: string; username: string; global_name?: string | null; avatar?: string };
+          nick?: string | null;
           avatar?: string;
         }> = await res.json();
         for (const m of members) {
@@ -77,8 +78,9 @@ export async function GET() {
               ? `https://cdn.discordapp.com/avatars/${uid}/${hash}.png`
               : defaultAvatarUrl(uid)
           );
-          if (m.user.global_name) {
-            globalNameMap.set(uid, m.user.global_name);
+          const nameToShow = m.nick ?? m.user.global_name;
+          if (nameToShow) {
+            globalNameMap.set(uid, nameToShow);
           }
         }
       }
