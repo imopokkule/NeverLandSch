@@ -177,7 +177,15 @@ export default function EventPage() {
                       alt="creator"
                       className="w-8 h-8 rounded-full"
                       style={{ border: "1px solid #1e3d45" }}
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatarUrl(ev.creator_id ?? "0"); }}
+                      onError={(e) => {
+                        const img = e.currentTarget as HTMLImageElement;
+                        if (ev.creator_id) {
+                          img.src = defaultAvatarUrl(ev.creator_id);
+                          img.onerror = () => { img.style.display = "none"; };
+                        } else {
+                          img.style.display = "none";
+                        }
+                      }}
                     />
                   )}
                   <span className="text-sm" style={{ color: "#9ec9b4" }}>{ev.creator_name}</span>
