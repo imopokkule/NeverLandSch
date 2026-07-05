@@ -97,16 +97,20 @@ export async function GET() {
     }
   }
 
+  const isDiscordId = (name: string) => /^\d{15,20}$/.test(name);
+
   const now = Date.now();
   const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-  const scheduleIds = new Set(ids);
 
   const result = ids
     .filter((id) => scheduleNameMap.has(id))
     .map((discord_id) => {
       const appUser = appUserMap.get(discord_id);
-      const site_name = scheduleNameMap.get(discord_id)!;
+      const rawSiteName = scheduleNameMap.get(discord_id)!;
+      // schedules.user_name がDiscord IDの数値の場合はapp_users.user_nameで補完
+      const site_name = isDiscordId(rawSiteName)
+        ? (appUser?.user_name ?? null)
+        : rawSiteName;
       const discord_name = appUser?.user_name ?? null;
       const display_name = globalNameMap.get(discord_id) ?? null;
       const created_at = appUser?.created_at ?? null;
@@ -128,7 +132,9 @@ export async function GET() {
     })
     .sort((a, b) => {
       if (a.isNew !== b.isNew) return a.isNew ? -1 : 1;
-      return (a.site_name ?? "").localeCompare(b.site_name ?? "", "ja");
+      const nameA = a.display_name ?? a.site_name ?? a.discord_name ?? a.discord_id;
+      const nameB = b.display_name ?? b.site_name ?? b.discord_name ?? b.discord_id;
+      return nameA.localeCompare(nameB, "ja");
     });
 
   return NextResponse.json(result);
