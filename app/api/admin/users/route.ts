@@ -87,6 +87,16 @@ export async function GET() {
     }
   }
 
+  // ギルドAPIから取得した最新アバターをapp_usersに書き戻す（古いURLを修正）
+  if (avatarMap.size > 0) {
+    const updates = Array.from(avatarMap.entries())
+      .filter(([id]) => appUserMap.has(id))
+      .map(([discord_id, avatar_url]) => ({ discord_id, avatar_url }));
+    if (updates.length > 0) {
+      await supabase.from("app_users").upsert(updates, { onConflict: "discord_id" });
+    }
+  }
+
   const now = Date.now();
   const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 

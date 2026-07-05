@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabase";
 
+function defaultAvatarUrl(userId: string): string {
+  try {
+    return `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(userId) >> BigInt(22)) % 6}.png`;
+  } catch {
+    return "https://cdn.discordapp.com/embed/avatars/0.png";
+  }
+}
+
 type Event = {
   id: string;
   title: string;
@@ -11,6 +19,7 @@ type Event = {
   event_date: string | null;
   event_time: string | null;
   discord_channel_id: string;
+  creator_id: string | null;
   creator_name: string | null;
   creator_image: string | null;
 };
@@ -52,7 +61,7 @@ export default function EventPage() {
       // 既存データを先に表示
       const { data } = await supabase
         .from("events")
-        .select("*")
+        .select("id, title, status, event_date, event_time, discord_channel_id, creator_id, creator_name, creator_image")
         .not("discord_channel_id", "is", null)
         .order("event_date", { ascending: true, nullsFirst: false });
       const evList = data || [];
@@ -63,7 +72,7 @@ export default function EventPage() {
       await fetch("/api/discord/channel");
       const { data: updated } = await supabase
         .from("events")
-        .select("*")
+        .select("id, title, status, event_date, event_time, discord_channel_id, creator_id, creator_name, creator_image")
         .not("discord_channel_id", "is", null)
         .order("event_date", { ascending: true, nullsFirst: false });
       const updatedList = updated || [];
@@ -162,8 +171,14 @@ export default function EventPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {ev.creator_image && (
-                    <img src={ev.creator_image} alt="creator" className="w-8 h-8 rounded-full" style={{ border: "1px solid #1e3d45" }} />
+                  {(ev.creator_image || ev.creator_id) && (
+                    <img
+                      src={ev.creator_image ?? defaultAvatarUrl(ev.creator_id!)}
+                      alt="creator"
+                      className="w-8 h-8 rounded-full"
+                      style={{ border: "1px solid #1e3d45" }}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatarUrl(ev.creator_id ?? "0"); }}
+                    />
                   )}
                   <span className="text-sm" style={{ color: "#9ec9b4" }}>{ev.creator_name}</span>
                 </div>
