@@ -86,22 +86,10 @@ export default function EventCreatePage() {
   // 全ユーザー取得 + 選択月のスケジュール取得
   useEffect(() => {
     const fetchUsers = async () => {
-      const [schedRes, { data: appUsersData }] = await Promise.all([
-        fetch(`/api/schedules?month=${selectedMonth}`).then((r) => r.json()),
-        supabase.from("app_users").select("discord_id, user_name"),
-      ]);
+      const schedRes = await fetch(`/api/schedules?month=${selectedMonth}`).then((r) => r.json());
 
       const scheduleUsers: { discord_id: string; user_name: string }[] = schedRes.users ?? [];
       const monthDataArr: { discord_id: string; data: Record<string, number> }[] = schedRes.monthData ?? [];
-
-      // app_users の user_name を優先（schedules の user_name が ID になっているケースを補正）
-      const appNameMap = new Map<string, string>(
-        (appUsersData ?? [])
-          .filter((u: { discord_id: string; user_name: string | null }) => u.user_name)
-          .map((u: { discord_id: string; user_name: string }) => [u.discord_id, u.user_name])
-      );
-
-      const isDiscordId = (name: string) => /^\d{15,20}$/.test(name);
 
       const unique = Array.from(
         new Map(scheduleUsers.map((u) => [u.discord_id, u])).values()
@@ -109,14 +97,14 @@ export default function EventCreatePage() {
 
       const scheduleMap = new Map(monthDataArr.map((s) => [s.discord_id, s.data]));
 
-      const merged: User[] = unique.map((u) => ({
-        discord_id: u.discord_id,
-        user_name:
-          !u.user_name || isDiscordId(u.user_name)
-            ? (appNameMap.get(u.discord_id) ?? u.user_name ?? u.discord_id)
-            : u.user_name,
-        data: scheduleMap.get(u.discord_id) || {},
-      }));
+      // /api/schedules がすでに global_name 優先で名前を解決済み
+      const merged: User[] = unique
+        .map((u) => ({
+          discord_id: u.discord_id,
+          user_name: u.user_name || u.discord_id,
+          data: scheduleMap.get(u.discord_id) || {},
+        }))
+        .sort((a, b) => a.user_name.localeCompare(b.user_name, "ja"));
 
       setAllUsers(merged);
 
