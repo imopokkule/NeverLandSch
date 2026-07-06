@@ -86,22 +86,33 @@ export default function EventCreatePage() {
   // 全ユーザー取得 + 選択月のスケジュール取得
   useEffect(() => {
     const fetchUsers = async () => {
-      const schedRes = await fetch(`/api/schedules?month=${selectedMonth}`).then((r) => r.json());
+      const [schedRes, adminRes] = await Promise.all([
+        fetch(`/api/schedules?month=${selectedMonth}`).then((r) => r.json()),
+        fetch("/api/admin/users").then((r) => r.json()),
+      ]);
 
       const scheduleUsers: { discord_id: string; user_name: string }[] = schedRes.users ?? [];
       const monthDataArr: { discord_id: string; data: Record<string, number> }[] = schedRes.monthData ?? [];
+      const adminUsers: { discord_id: string; display_name: string | null; site_name: string | null; discord_name: string | null }[] =
+        Array.isArray(adminRes) ? adminRes : [];
+
+      // USERSページと同じ優先順位で表示名を取得
+      const displayNameMap = new Map<string, string>(
+        adminUsers.map((u) => [
+          u.discord_id,
+          u.display_name ?? u.site_name ?? u.discord_name ?? u.discord_id,
+        ])
+      );
 
       const unique = Array.from(
         new Map(scheduleUsers.map((u) => [u.discord_id, u])).values()
       );
-
       const scheduleMap = new Map(monthDataArr.map((s) => [s.discord_id, s.data]));
 
-      // /api/schedules がすでに global_name 優先で名前を解決済み
       const merged: User[] = unique
         .map((u) => ({
           discord_id: u.discord_id,
-          user_name: u.user_name || u.discord_id,
+          user_name: displayNameMap.get(u.discord_id) ?? u.user_name || u.discord_id,
           data: scheduleMap.get(u.discord_id) || {},
         }))
         .sort((a, b) => a.user_name.localeCompare(b.user_name, "ja"));
