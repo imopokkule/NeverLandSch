@@ -112,7 +112,7 @@ export default function EventCreatePage() {
       const merged: User[] = unique
         .map((u) => ({
           discord_id: u.discord_id,
-          user_name: displayNameMap.get(u.discord_id) ?? u.user_name || u.discord_id,
+          user_name: (displayNameMap.get(u.discord_id) ?? u.user_name) || u.discord_id,
           data: scheduleMap.get(u.discord_id) || {},
         }))
         .sort((a, b) => a.user_name.localeCompare(b.user_name, "ja"));
