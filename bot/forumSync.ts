@@ -20,40 +20,74 @@ type ScenarioRow = {
   system: string;
 };
 
-async function getAllThreadsInForum(
-  forum: ForumChannel
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchArchivedViaRest(
+  channelId: string,
+  token: string,
+  type: "public" | "private"
 ): Promise<{ id: string; name: string }[]> {
   const results: { id: string; name: string }[] = [];
-
-  try {
-    const active = await forum.threads.fetchActive();
-    for (const [, t] of active.threads) {
-      results.push({ id: t.id, name: t.name });
-    }
-  } catch (err) {
-    console.error(`❌ active threads error (${forum.name}):`, err);
-  }
-
   let before: string | undefined;
+
   for (let page = 0; page < 50; page++) {
-    try {
-      const archived = await forum.threads.fetchArchived({
-        limit: 100,
-        before,
-        type: "public",
+    const url = new URL(
+      `https://discord.com/api/v10/channels/${channelId}/threads/archived/${type}`
+    );
+    url.searchParams.set("limit", "100");
+    if (before) url.searchParams.set("before", before);
+
+    let res: Response | null = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const r = await fetch(url.toString(), {
+        headers: { Authorization: `Bot ${token}` },
       });
-      for (const [, t] of archived.threads) {
-        results.push({ id: t.id, name: t.name });
+      if (r.status === 429) {
+        const d = await r.json().catch(() => ({}));
+        await sleep(((d.retry_after ?? 1) as number) * 1000);
+        continue;
       }
-      if (!archived.hasMore) break;
-      before = [...archived.threads.values()].pop()?.id;
-      if (!before) break;
-    } catch {
+      res = r;
       break;
     }
+    if (!res || !res.ok) break;
+
+    const data = await res.json();
+    const batch: { id: string; name: string; thread_metadata?: { archive_timestamp?: string } }[] =
+      data.threads ?? [];
+
+    for (const t of batch) results.push({ id: t.id, name: t.name });
+
+    if (!data.has_more || batch.length === 0) break;
+    before = batch[batch.length - 1].thread_metadata?.archive_timestamp;
+    if (!before) break;
   }
 
   return results;
+}
+
+async function getAllThreadsInForum(
+  forum: ForumChannel,
+  token: string
+): Promise<{ id: string; name: string }[]> {
+  const seen = new Map<string, string>();
+
+  try {
+    const active = await forum.threads.fetchActive();
+    for (const [, t] of active.threads) seen.set(t.id, t.name);
+  } catch (err) {
+    console.error(`  ⚠ active fetch error (${forum.name}):`, err);
+  }
+
+  const [pub, priv] = await Promise.all([
+    fetchArchivedViaRest(forum.id, token, "public"),
+    fetchArchivedViaRest(forum.id, token, "private"),
+  ]);
+  for (const t of [...pub, ...priv]) {
+    if (!seen.has(t.id)) seen.set(t.id, t.name);
+  }
+
+  return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
 }
 
 export async function syncAllForumsToSupabase(
@@ -98,13 +132,14 @@ export async function syncAllForumsToSupabase(
 
   console.log(`📋 対象フォーラムチャンネル数: ${forumChannels.length}`);
 
+  const token = client.token!;
   const rows: ScenarioRow[] = [];
 
   for (const forum of forumChannels) {
     const system = getScenarioSystem(forum.parentId);
     if (!system) continue;
 
-    const threads = await getAllThreadsInForum(forum);
+    const threads = await getAllThreadsInForum(forum, token);
     for (const t of threads) {
       rows.push({
         thread_id: t.id,
