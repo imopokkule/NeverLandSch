@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type Scenario = { id: string; name: string };
 type UserChannel = { id: string; name: string; scenarios: Scenario[] };
-type ScenariosData = { trpg: UserChannel[]; madamis: UserChannel[] };
+type ScenariosData = { trpg: UserChannel[]; madamis: UserChannel[]; guildId?: string };
 
 function highlightMatch(text: string, query: string) {
   if (!query) return <>{text}</>;
@@ -157,12 +157,18 @@ export default function ScenariosPage() {
                   </div>
                   <ul className="space-y-1 max-h-60 overflow-y-auto pr-1">
                     {user.scenarios.map((s) => (
-                      <li
-                        key={s.id}
-                        className="text-sm px-3 py-1.5 rounded-lg"
-                        style={{ backgroundColor: "#0d1f24", color: "#e8f5f0" }}
-                      >
-                        {highlightMatch(s.name, search)}
+                      <li key={s.id}>
+                        <a
+                          href={data?.guildId
+                            ? `https://discord.com/channels/${data.guildId}/${s.id}`
+                            : undefined}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-sm px-3 py-1.5 rounded-lg transition-opacity hover:opacity-70"
+                          style={{ backgroundColor: "#0d1f24", color: "#e8f5f0" }}
+                        >
+                          {highlightMatch(s.name, search)}
+                        </a>
                       </li>
                     ))}
                   </ul>

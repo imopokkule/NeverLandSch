@@ -109,6 +109,7 @@ export async function GET() {
         return NextResponse.json({
           trpg: buildFromDbRows(data, "trpg"),
           madamis: buildFromDbRows(data, "madamis"),
+          guildId,
           cached: true,
         });
       }
@@ -179,6 +180,7 @@ export async function GET() {
   return NextResponse.json({
     trpg: buildResult(trpgChannels),
     madamis: buildResult(madamisChannels),
+    guildId,
     cached: false,
   });
 }
