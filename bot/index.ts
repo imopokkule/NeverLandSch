@@ -10,7 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 import {
   syncAllForumsToSupabase,
   getScenarioSystem,
-} from "./forumSync.js";
+} from "./forumSync";
 
 /* ===============================
    環境変数
