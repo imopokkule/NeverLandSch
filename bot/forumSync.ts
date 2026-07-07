@@ -58,21 +58,41 @@ async function getAllThreadsInForum(
 
 export async function syncAllForumsToSupabase(
   client: Client,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  guildId?: string
 ) {
   console.log("🔄 シナリオ全件同期開始...");
 
-  const guild = client.guilds.cache.first();
+  const guild = guildId
+    ? (client.guilds.cache.get(guildId) ?? await client.guilds.fetch(guildId).catch(() => null))
+    : client.guilds.cache.first();
+
   if (!guild) {
     console.error("❌ ギルドが見つかりません");
     return;
   }
+  console.log(`🏰 ギルド: ${guild.name} (${guild.id})`);
 
   const allChannels = await guild.channels.fetch();
+  console.log(`📡 全チャンネル数: ${allChannels.size}`);
+
+  // デバッグ: カテゴリ周辺のチャンネルを出力
+  for (const [, c] of allChannels) {
+    if (!c) continue;
+    if (
+      c.parentId === TRPG_CATEGORY_ID ||
+      c.parentId === MADAMIS_CATEGORY_ID ||
+      c.id === TRPG_CATEGORY_ID ||
+      c.id === MADAMIS_CATEGORY_ID
+    ) {
+      console.log(`  🔍 ${c.name} | type=${c.type} | parentId=${c.parentId ?? "null"}`);
+    }
+  }
+
   const forumChannels = [...allChannels.values()].filter(
     (c) =>
       c &&
-      c.type === ChannelType.GuildForum &&
+      (c.type === ChannelType.GuildForum || c.type === 16) &&
       (c.parentId === TRPG_CATEGORY_ID || c.parentId === MADAMIS_CATEGORY_ID)
   ) as ForumChannel[];
 

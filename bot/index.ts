@@ -97,7 +97,7 @@ client.once("clientReady", async (readyClient) => {
 
   // 起動時にシナリオ全件同期
   try {
-    await syncAllForumsToSupabase(client, supabase);
+    await syncAllForumsToSupabase(client, supabase, DISCORD_GUILD_ID);
   } catch (err) {
     console.error("❌ 起動時シナリオ同期エラー:", err);
   }
