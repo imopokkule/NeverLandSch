@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const TRPG_CATEGORY_ID = "1425644276200767588";
 const MADAMIS_CATEGORY_ID = "1425644252179730532";
@@ -49,15 +50,74 @@ async function fetchArchivedThreads(channelId: string, token: string, type: "pub
   return threads;
 }
 
+type DbRow = {
+  thread_id: string;
+  thread_name: string;
+  channel_id: string;
+  channel_name: string;
+  system: string;
+};
+
+type UserChannel = { id: string; name: string; scenarios: { id: string; name: string }[] };
+
+function buildFromDbRows(rows: DbRow[], system: string): UserChannel[] {
+  const channelMap = new Map<string, UserChannel>();
+
+  for (const row of rows) {
+    if (row.system !== system) continue;
+    if (!channelMap.has(row.channel_id)) {
+      channelMap.set(row.channel_id, {
+        id: row.channel_id,
+        name: row.channel_name,
+        scenarios: [],
+      });
+    }
+    channelMap.get(row.channel_id)!.scenarios.push({
+      id: row.thread_id,
+      name: row.thread_name,
+    });
+  }
+
+  return [...channelMap.values()]
+    .map((u) => ({
+      ...u,
+      scenarios: u.scenarios.sort((a, b) => a.name.localeCompare(b.name, "ja")),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+}
+
 export async function GET() {
   const token = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!token || !guildId) {
     return NextResponse.json({ error: "Missing config" }, { status: 500 });
   }
 
-  // ギルドの全チャンネルを取得
+  // Supabaseキャッシュを優先して読み込む
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      const { data, error } = await supabase
+        .from("scenarios")
+        .select("thread_id, thread_name, channel_id, channel_name, system")
+        .order("thread_name", { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        return NextResponse.json({
+          trpg: buildFromDbRows(data, "trpg"),
+          madamis: buildFromDbRows(data, "madamis"),
+          cached: true,
+        });
+      }
+    } catch {
+      // Supabase取得失敗時はDiscord APIにフォールバック
+    }
+  }
+
+  // Supabaseにデータなし → Discord APIから直接取得（初回のみ/フォールバック）
   const channelsRes = await discordFetch(
     `https://discord.com/api/v10/guilds/${guildId}/channels`,
     token
@@ -68,7 +128,6 @@ export async function GET() {
   const allChannels: { id: string; name: string; type: number; parent_id: string | null }[] =
     await channelsRes.json();
 
-  // カテゴリIDでフォーラム（type 15）またはメディア（type 16）チャンネルを絞り込み
   const trpgChannels = allChannels
     .filter((c) => c.parent_id === TRPG_CATEGORY_ID && (c.type === 15 || c.type === 16))
     .sort((a, b) => a.name.localeCompare(b.name, "ja"));
@@ -79,7 +138,6 @@ export async function GET() {
   const allForumChannels = [...trpgChannels, ...madamisChannels];
   const forumIdSet = new Set(allForumChannels.map((c) => c.id));
 
-  // ギルド全体のアクティブスレッドを取得
   const activeRes = await discordFetch(
     `https://discord.com/api/v10/guilds/${guildId}/threads/active`,
     token
@@ -87,7 +145,6 @@ export async function GET() {
   const { threads: activeThreads = [] }: { threads: { id: string; name: string; parent_id: string }[] } =
     activeRes?.ok ? await activeRes.json() : { threads: [] };
 
-  // フォーラムチャンネルごとにスレッドをグルーピング（重複排除のためMapを使用）
   const threadsByChannel = new Map<string, Map<string, string>>();
   for (const t of activeThreads) {
     if (forumIdSet.has(t.parent_id)) {
@@ -96,7 +153,6 @@ export async function GET() {
     }
   }
 
-  // 各フォーラムチャンネルのアーカイブスレッドを取得（public + private）
   for (const ch of allForumChannels) {
     if (!threadsByChannel.has(ch.id)) threadsByChannel.set(ch.id, new Map());
     const map = threadsByChannel.get(ch.id)!;
@@ -123,5 +179,6 @@ export async function GET() {
   return NextResponse.json({
     trpg: buildResult(trpgChannels),
     madamis: buildResult(madamisChannels),
+    cached: false,
   });
 }

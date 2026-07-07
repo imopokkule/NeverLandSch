@@ -4,8 +4,13 @@ import {
   GatewayIntentBits,
   ChannelType,
   TextChannel,
+  ForumChannel,
 } from "discord.js";
 import { createClient } from "@supabase/supabase-js";
+import {
+  syncAllForumsToSupabase,
+  getScenarioSystem,
+} from "./forumSync";
 
 /* ===============================
    環境変数
@@ -42,7 +47,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 =============================== */
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
 /* ===============================
@@ -56,31 +65,22 @@ const CATEGORY_MAP: Record<string, string> = {
   closed_murder: CATEGORY_CLOSED_MURDER ?? "",
 };
 
-// categoryId → status（固定カテゴリの逆引き）
 const REVERSE_MAP: Record<string, string> = Object.fromEntries(
   Object.entries(CATEGORY_MAP).filter(([, v]) => v).map(([k, v]) => [v, k])
 );
 
-// 月別カテゴリのパターン（例: 立卓済み〈5月〉）
 const MONTHLY_CONFIRMED_PATTERN = /立卓済み[〈<].+月[〉>]/;
 
-/**
- * カテゴリIDからステータスを解決する
- * 固定カテゴリ → 逆引きマップ
- * 月別カテゴリ → 名前パターンでマッチ
- */
 function resolveStatus(parentId: string | null | undefined): string | null {
   if (!parentId) return null;
 
-  // 固定カテゴリの逆引き
   if (REVERSE_MAP[parentId]) return REVERSE_MAP[parentId];
 
-  // 月別カテゴリ（「立卓済み〈X月〉」）をキャッシュから名前で判定
   const category = client.channels.cache.get(parentId);
   if (category && "name" in category && typeof category.name === "string") {
     if (MONTHLY_CONFIRMED_PATTERN.test(category.name)) {
       console.log(`📅 月別カテゴリ検出: ${category.name}`);
-      return category.name; // カテゴリ名をそのままstatusとして保存
+      return category.name;
     }
   }
 
@@ -91,9 +91,93 @@ function resolveStatus(parentId: string | null | undefined): string | null {
    Bot Ready
 =============================== */
 
-client.once("clientReady", (readyClient) => {
+client.once("clientReady", async (readyClient) => {
   console.log(`✅ Logged in as ${readyClient.user.tag}`);
   console.log("👂 Listening for Discord events (Discord → DB direction)");
+
+  // 起動時にシナリオ全件同期
+  try {
+    await syncAllForumsToSupabase(client, supabase);
+  } catch (err) {
+    console.error("❌ 起動時シナリオ同期エラー:", err);
+  }
+});
+
+/* ===============================
+   フォーラムスレッド作成 → シナリオDB追加
+=============================== */
+
+client.on("threadCreate", async (thread) => {
+  try {
+    if (!thread.parentId) return;
+
+    const parentChannel = await client.channels
+      .fetch(thread.parentId)
+      .catch(() => null);
+
+    if (!parentChannel || parentChannel.type !== ChannelType.GuildForum) return;
+
+    const forum = parentChannel as ForumChannel;
+    const system = getScenarioSystem(forum.parentId);
+    if (!system) return;
+
+    console.log(`📝 新シナリオ検出: "${thread.name}" in ${forum.name} (${system})`);
+
+    const { error } = await supabase.from("scenarios").upsert(
+      {
+        thread_id: thread.id,
+        thread_name: thread.name,
+        channel_id: forum.id,
+        channel_name: forum.name,
+        system,
+        synced_at: new Date().toISOString(),
+      },
+      { onConflict: "thread_id" }
+    );
+
+    if (error) console.error("❌ シナリオ追加エラー:", error);
+    else console.log(`✅ シナリオ追加: "${thread.name}"`);
+  } catch (err) {
+    console.error("❌ threadCreate error:", err);
+  }
+});
+
+/* ===============================
+   フォーラムスレッド削除 → シナリオDB削除
+=============================== */
+
+client.on("threadDelete", async (thread) => {
+  try {
+    const { error } = await supabase
+      .from("scenarios")
+      .delete()
+      .eq("thread_id", thread.id);
+
+    if (error) console.error("❌ シナリオ削除エラー:", error);
+    else console.log(`✅ シナリオ削除: ${thread.id}`);
+  } catch (err) {
+    console.error("❌ threadDelete error:", err);
+  }
+});
+
+/* ===============================
+   フォーラムスレッド更新（名前変更）→ シナリオDB更新
+=============================== */
+
+client.on("threadUpdate", async (oldThread, newThread) => {
+  try {
+    if (oldThread.name === newThread.name) return;
+
+    const { error } = await supabase
+      .from("scenarios")
+      .update({ thread_name: newThread.name, synced_at: new Date().toISOString() })
+      .eq("thread_id", newThread.id);
+
+    if (error) console.error("❌ シナリオ更新エラー:", error);
+    else console.log(`✅ シナリオ名更新: "${oldThread.name}" → "${newThread.name}"`);
+  } catch (err) {
+    console.error("❌ threadUpdate error:", err);
+  }
 });
 
 /* ===============================
@@ -141,7 +225,6 @@ client.on("channelDelete", async (channel) => {
 
     console.log("🗑 Discord channel deleted:", channel.id);
 
-    // 現在のステータスを確認
     const { data: ev } = await supabase
       .from("events")
       .select("status")
@@ -154,7 +237,6 @@ client.on("channelDelete", async (channel) => {
     }
 
     if (ev.status?.startsWith("closed_")) {
-      // 終了済みセッションはアーカイブ（discord_channel_id を null にして DB に残す）
       const { error } = await supabase
         .from("events")
         .update({ discord_channel_id: null })
@@ -162,7 +244,6 @@ client.on("channelDelete", async (channel) => {
       if (error) console.error("❌ DB archive error:", error);
       else console.log("📦 Closed event archived in DB");
     } else {
-      // 進行中セッションは削除
       const { error } = await supabase
         .from("events")
         .delete()
