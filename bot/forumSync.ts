@@ -50,12 +50,14 @@ async function fetchArchivedViaRest(
       res = r;
       break;
     }
-    if (!res || !res.ok) break;
+    if (!res) { console.log(`    ⚠ archived/${type}: no response`); break; }
+    if (!res.ok) { console.log(`    ⚠ archived/${type}: HTTP ${res.status}`); break; }
 
     const data = await res.json();
     const batch: { id: string; name: string; thread_metadata?: { archive_timestamp?: string } }[] =
       data.threads ?? [];
 
+    console.log(`    archived/${type} page${page}: ${batch.length}件, has_more=${data.has_more}`);
     for (const t of batch) results.push({ id: t.id, name: t.name });
 
     if (!data.has_more || batch.length === 0) break;
