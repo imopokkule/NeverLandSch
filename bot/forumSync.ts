@@ -51,7 +51,11 @@ async function fetchArchivedViaRest(
       break;
     }
     if (!res) { console.log(`    ⚠ archived/${type}: no response`); break; }
-    if (!res.ok) { console.log(`    ⚠ archived/${type}: HTTP ${res.status}`); break; }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.log(`    ⚠ archived/${type}: HTTP ${res.status}`, JSON.stringify(body));
+      break;
+    }
 
     const data = await res.json();
     const batch: { id: string; name: string; thread_metadata?: { archive_timestamp?: string } }[] =
