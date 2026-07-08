@@ -10,6 +10,12 @@ const PAGES = [
     tooltip: "参加者募集中のセッションや立卓済みのセッションを確認できます",
   },
   {
+    href: "/event/my",
+    label: "My Sessions",
+    desc: "自分が参加するセッション",
+    tooltip: "自分が参加予定・参加済みのセッションを一覧で確認できます",
+  },
+  {
     href: "/event/create",
     label: "Create",
     desc: "新しいセッションを作成",
@@ -26,6 +32,12 @@ const PAGES = [
     label: "Calendar",
     desc: "月ごとのセッションカレンダー",
     tooltip: "日付ごとのセッションと参加可能メンバーを確認できます",
+  },
+  {
+    href: "/scenarios",
+    label: "Scenarios",
+    desc: "メンバーの所持シナリオ一覧",
+    tooltip: "TRPGとマダミスのシナリオをメンバーごとに確認できます",
   },
 ];
 
