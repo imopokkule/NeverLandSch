@@ -135,17 +135,23 @@ export default function EventDetailPage() {
       const participantIds = rawParticipants.map((p) => p.discord_id).filter(Boolean);
 
       // スケジュールデータをAPIルート経由で取得（RLS回避のためサービスロールキー使用）
-      const [schedulesJson, { data: appUserAvatars }] = await Promise.all([
+      const [schedulesJson, { data: appUserAvatars }, adminUsers] = await Promise.all([
         fetch(`/api/schedules?month=${selectedMonth}`).then((r) => r.json()),
         supabase.from("app_users").select("discord_id, avatar_url"),
+        fetch("/api/admin/users").then((r) => r.json()).catch(() => []),
       ]);
 
       const scheduleUsers: { discord_id: string; user_name: string }[] = schedulesJson.users ?? [];
       const scheduleData: { discord_id: string; data: Record<string, number | null> }[] = schedulesJson.monthData ?? [];
 
-      const nameMap = new Map(
-        scheduleUsers.map((u) => [u.discord_id, u.user_name])
+      // 表示名優先度: display_name(global_name) → site_name → discord_name → discord_id
+      const displayNameMap = new Map<string, string>(
+        (Array.isArray(adminUsers) ? adminUsers : []).map((u: { discord_id: string; display_name?: string | null; site_name?: string | null; discord_name?: string | null }) => [
+          u.discord_id,
+          u.display_name ?? u.site_name ?? u.discord_name ?? u.discord_id,
+        ])
       );
+
       const dataMap = new Map(
         scheduleData.map((s) => [s.discord_id, s.data])
       );
@@ -153,12 +159,12 @@ export default function EventDetailPage() {
         (appUserAvatars ?? []).map((u: { discord_id: string; avatar_url: string | null }) => [u.discord_id, u.avatar_url])
       );
 
-      // 参加者一覧をセット（schedules に登録があれば名前を上書き）
+      // 参加者一覧をセット（display_name 優先）
       if (participantIds.length > 0) {
         setParticipants(
           rawParticipants.map((p) => ({
             discord_id: p.discord_id,
-            user_name: nameMap.get(p.discord_id) || p.user_name || p.discord_id,
+            user_name: displayNameMap.get(p.discord_id) || p.user_name || p.discord_id,
             data: dataMap.get(p.discord_id) || {},
             avatar_url: avatarMap.get(p.discord_id) ?? null,
           }))
@@ -167,16 +173,16 @@ export default function EventDetailPage() {
 
       // 参加者追加用のユーザー一覧（GM選択にも使用）
       const unique = Array.from(
-        new Map((scheduleUsers ?? []).map((u: { discord_id: string; user_name: string }) => [u.discord_id, u])).values()
+        new Map(scheduleUsers.map((u) => [u.discord_id, u])).values()
       ) as { discord_id: string; user_name: string }[];
 
       setAllUsers(
         unique.map((u) => ({
           discord_id: u.discord_id,
-          user_name: u.user_name,
+          user_name: displayNameMap.get(u.discord_id) || u.user_name || u.discord_id,
           data: dataMap.get(u.discord_id) || {},
           avatar_url: avatarMap.get(u.discord_id) ?? null,
-        }))
+        })).sort((a, b) => a.user_name.localeCompare(b.user_name, "ja"))
       );
     };
 
