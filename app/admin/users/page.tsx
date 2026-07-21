@@ -61,14 +61,13 @@ export default function AdminUsersPage() {
 
   if (!isAdmin) return null;
 
-  const scheduleUsers = users.filter((u) => u.hasSchedule);
-  const noGlobalNameUsers = scheduleUsers.filter((u) => !u.display_name);
-  const leftGuildUsers = scheduleUsers.filter((u) => !u.inGuild);
+  const noGlobalNameUsers = users.filter((u) => !u.display_name);
+  const leftGuildUsers = users.filter((u) => !u.inGuild);
 
   const baseList =
     filter === "no_global_name" ? noGlobalNameUsers :
     filter === "left_guild"     ? leftGuildUsers :
-    scheduleUsers;
+    users;
 
   const filtered = search.trim()
     ? baseList.filter((u) => {
@@ -92,14 +91,14 @@ export default function AdminUsersPage() {
             Users
           </h1>
           <p style={{ color: "#9ec9b4" }} className="text-sm tracking-wide">
-            全 {scheduleUsers.length} 人 / 表示名未設定 {noGlobalNameUsers.length} 人 / 退出済み {leftGuildUsers.length} 人
+            全 {users.length} 人 / 表示名未設定 {noGlobalNameUsers.length} 人 / 退出済み {leftGuildUsers.length} 人
           </p>
         </div>
 
         {/* フィルター */}
         <div className="flex flex-wrap gap-2">
           {([
-            { key: "all",            label: `全員 (${scheduleUsers.length})` },
+            { key: "all",            label: `全員 (${users.length})` },
             { key: "no_global_name", label: `表示名未設定 (${noGlobalNameUsers.length})` },
             { key: "left_guild",     label: `退出済み (${leftGuildUsers.length})` },
           ] as const).map(({ key, label }) => (
@@ -169,6 +168,11 @@ export default function AdminUsersPage() {
                   {u.isNew && (
                     <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: "#4ecdc4", color: "#0a1a1e" }}>
                       NEW
+                    </span>
+                  )}
+                  {!u.hasSchedule && (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ border: "1px solid #9ec9b4", color: "#9ec9b4" }}>
+                      未登録
                     </span>
                   )}
                   {!u.inGuild && (
