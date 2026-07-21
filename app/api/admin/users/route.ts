@@ -32,22 +32,24 @@ export async function GET() {
     }
   }
 
-  const ids = Array.from(scheduleNameMap.keys());
+  const scheduleIds = Array.from(scheduleNameMap.keys());
 
   // app_users 全件取得（登録日・アバター・スケジュール未登録ユーザー検出に使用）
   const { data: allAppUsers } = await supabase
     .from("app_users")
     .select("discord_id, user_name, avatar_url, created_at");
 
-  const appUsers = (allAppUsers ?? []).filter((u) => ids.includes(u.discord_id));
-
   const appUserMap = new Map<string, { user_name: string | null; avatar_url: string | null; created_at: string | null }>(
-    (appUsers ?? []).map((u) => [u.discord_id, {
+    (allAppUsers ?? []).map((u) => [u.discord_id, {
       user_name: u.user_name ?? null,
       avatar_url: u.avatar_url ?? null,
       created_at: u.created_at ?? null,
     }])
   );
+
+  // schedules + app_users の和集合で表示対象を決定
+  const appUserIds = (allAppUsers ?? []).map((u) => u.discord_id);
+  const ids = Array.from(new Set([...scheduleIds, ...appUserIds]));
 
   // Discord ギルドメンバー一覧を取得（アバター・global_name補完・在籍確認）
   const avatarMap = new Map<string, string>();
@@ -105,14 +107,14 @@ export async function GET() {
   const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
   const result = ids
-    .filter((id) => scheduleNameMap.has(id))
     .map((discord_id) => {
       const appUser = appUserMap.get(discord_id);
-      const rawSiteName = scheduleNameMap.get(discord_id)!;
+      const rawSiteName = scheduleNameMap.get(discord_id);
+      const hasSchedule = rawSiteName !== undefined;
       // schedules.user_name がDiscord IDの数値の場合はapp_users.user_nameで補完
-      const site_name = isDiscordId(rawSiteName)
-        ? (appUser?.user_name ?? null)
-        : rawSiteName;
+      const site_name = rawSiteName
+        ? (isDiscordId(rawSiteName) ? (appUser?.user_name ?? null) : rawSiteName)
+        : null;
       const discord_name = appUser?.user_name ?? null;
       const display_name = globalNameMap.get(discord_id) ?? null;
       const created_at = appUser?.created_at ?? null;
@@ -128,7 +130,7 @@ export async function GET() {
         avatar_url: avatarMap.get(discord_id) ?? appUser?.avatar_url ?? defaultAvatarUrl(discord_id),
         created_at,
         isNew,
-        hasSchedule: true,
+        hasSchedule,
         inGuild: guildMemberIds.size === 0 || guildMemberIds.has(discord_id),
       };
     })
