@@ -24,11 +24,11 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // discord_id で重複排除
+  // discord_id で重複排除（bigint精度ズレ防止のため必ずString変換）
   const scheduleNameMap = new Map<string, string>();
   for (const row of scheduleData ?? []) {
     if (row.discord_id && row.user_name) {
-      scheduleNameMap.set(row.discord_id, row.user_name);
+      scheduleNameMap.set(String(row.discord_id), row.user_name);
     }
   }
 
@@ -40,7 +40,7 @@ export async function GET() {
     .select("discord_id, user_name, avatar_url, created_at");
 
   const appUserMap = new Map<string, { user_name: string | null; avatar_url: string | null; created_at: string | null }>(
-    (allAppUsers ?? []).map((u) => [u.discord_id, {
+    (allAppUsers ?? []).map((u) => [String(u.discord_id), {
       user_name: u.user_name ?? null,
       avatar_url: u.avatar_url ?? null,
       created_at: u.created_at ?? null,
@@ -48,7 +48,7 @@ export async function GET() {
   );
 
   // schedules + app_users の和集合で表示対象を決定
-  const appUserIds = (allAppUsers ?? []).map((u) => u.discord_id);
+  const appUserIds = (allAppUsers ?? []).map((u) => String(u.discord_id));
   const ids = Array.from(new Set([...scheduleIds, ...appUserIds]));
 
   // Discord ギルドメンバー一覧を取得（アバター・global_name補完・在籍確認）
@@ -85,7 +85,7 @@ export async function GET() {
         if (!res || !res.ok) break;
         const members: Member[] = await res.json();
         for (const m of members) {
-          const uid = m.user.id;
+          const uid = String(m.user.id);
           guildMemberIds.add(uid);
           const hash = m.avatar ?? m.user.avatar;
           avatarMap.set(
