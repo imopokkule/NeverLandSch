@@ -60,16 +60,19 @@ export async function GET() {
   const guildId = process.env.DISCORD_GUILD_ID;
   if (token && guildId) {
     try {
-      const res = await fetch(
-        `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000`,
-        { headers: { Authorization: `Bot ${token}` } }
-      );
-      if (res.ok) {
-        const members: Array<{
-          user: { id: string; username: string; global_name?: string | null; avatar?: string };
-          nick?: string | null;
-          avatar?: string;
-        }> = await res.json();
+      type Member = {
+        user: { id: string; username: string; global_name?: string | null; avatar?: string };
+        nick?: string | null;
+        avatar?: string;
+      };
+      let after = "0";
+      for (;;) {
+        const res = await fetch(
+          `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000&after=${after}`,
+          { headers: { Authorization: `Bot ${token}` } }
+        );
+        if (!res.ok) break;
+        const members: Member[] = await res.json();
         for (const m of members) {
           const uid = m.user.id;
           guildMemberIds.add(uid);
@@ -81,10 +84,10 @@ export async function GET() {
               : defaultAvatarUrl(uid)
           );
           const nameToShow = m.nick ?? m.user.global_name;
-          if (nameToShow) {
-            globalNameMap.set(uid, nameToShow);
-          }
+          if (nameToShow) globalNameMap.set(uid, nameToShow);
         }
+        if (members.length < 1000) break;
+        after = members[members.length - 1].user.id;
       }
     } catch {
       // Discord API 失敗時はデフォルトで続行
