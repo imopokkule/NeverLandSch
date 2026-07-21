@@ -67,11 +67,22 @@ export async function GET() {
       };
       let after = "0";
       for (;;) {
-        const res = await fetch(
-          `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000&after=${after}`,
-          { headers: { Authorization: `Bot ${token}` } }
-        );
-        if (!res.ok) break;
+        let res: Response | null = null;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const r = await fetch(
+            `https://discord.com/api/v10/guilds/${guildId}/members?limit=1000&after=${after}`,
+            { headers: { Authorization: `Bot ${token}` } }
+          );
+          if (r.status === 429) {
+            const d = await r.json().catch(() => ({}));
+            const wait = ((d.retry_after ?? 1) as number) * 1000;
+            await new Promise((resolve) => setTimeout(resolve, wait));
+            continue;
+          }
+          res = r;
+          break;
+        }
+        if (!res || !res.ok) break;
         const members: Member[] = await res.json();
         for (const m of members) {
           const uid = m.user.id;
