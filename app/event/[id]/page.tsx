@@ -156,7 +156,7 @@ export default function EventDetailPage() {
         scheduleData.map((s) => [s.discord_id, s.data])
       );
       const avatarMap = new Map(
-        (appUserAvatars ?? []).map((u: { discord_id: string; avatar_url: string | null }) => [u.discord_id, u.avatar_url])
+        (appUserAvatars ?? []).map((u: { discord_id: string; avatar_url: string | null }) => [String(u.discord_id), u.avatar_url])
       );
 
       // 参加者一覧をセット（display_name 優先）
@@ -248,6 +248,29 @@ export default function EventDetailPage() {
     }).eq("id", event.id);
 
     if (error) { alert("更新失敗"); return; }
+
+    // セッション日程が確定している場合、参加者（GM含む）のスケジュールを自動更新
+    if (event.event_date) {
+      const [year, mon, day] = event.event_date.split("-").map(Number);
+      const targets = new Map(
+        participants.map((u) => [u.discord_id, { discord_id: u.discord_id, user_name: u.user_name }])
+      );
+      if (event.gm_id) {
+        targets.set(event.gm_id, { discord_id: event.gm_id, user_name: event.gm_name ?? event.gm_id });
+      }
+      if (targets.size > 0) {
+        await fetch("/api/schedules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            participants: Array.from(targets.values()),
+            month: `${year}-${String(mon).padStart(2, "0")}`,
+            day,
+            eventTime: event.event_time,
+          }),
+        }).catch(() => {});
+      }
+    }
 
     if (event.discord_channel_id) {
       // Discordチャンネル名は「日時+タイトル」形式で更新
