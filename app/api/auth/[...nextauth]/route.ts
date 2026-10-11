@@ -7,6 +7,10 @@ export const authOptions: AuthOptions = {
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+      // Discordがコールバックに iss パラメータを付与するようになったが、
+      // next-auth組み込みのDiscordプロバイダーは issuer 未設定のため
+      // openid-client の検証で "issuer must be configured on the issuer" になる。
+      issuer: "https://discord.com",
       profile(profile: DiscordProfile) {
         return {
           id: profile.id,
